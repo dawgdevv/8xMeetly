@@ -21,10 +21,10 @@ export function TranscriptSearch({
 
   if (segments.length === 0) {
     return (
-      <div className="rounded-3xl border border-border bg-card px-6 py-14 text-center">
+      <div className="flex min-h-[340px] flex-col items-center justify-center rounded-[20px] border border-border bg-card px-6 py-14 text-center shadow-[0_1px_2px_rgb(41_39_33/0.04),0_12px_32px_-25px_rgb(41_39_33/0.34)]">
         <span
           aria-hidden="true"
-          className="mx-auto flex h-14 w-14 items-center justify-center rounded-3xl bg-primary/10 text-primary"
+          className="mx-auto flex h-16 w-16 items-center justify-center rounded-[22px] bg-primary/[0.09] text-primary"
         >
           <FileText size={26} strokeWidth={2} />
         </span>
@@ -56,7 +56,7 @@ export function TranscriptSearch({
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search what was said…"
-          className="h-12 w-full rounded-2xl border border-border bg-card pl-11 pr-4 text-sm text-foreground shadow-sm placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-primary/50"
+          className="h-12 w-full rounded-xl border border-border bg-card pl-11 pr-4 text-sm text-foreground shadow-sm placeholder:text-stone-400 transition-[border-color,box-shadow] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
         />
       </div>
       <p aria-live="polite" className="mt-3 text-[13px] font-medium tabular-nums text-muted">
@@ -64,7 +64,7 @@ export function TranscriptSearch({
           ? `${filtered.length} of ${segments.length} segments match`
           : `${segments.length} segments`}
       </p>
-      <div className="mt-2 space-y-5 rounded-3xl border border-border bg-card p-6 sm:p-7">
+      <div className="mt-3 space-y-5 rounded-[20px] border border-border bg-card p-5 shadow-[0_1px_2px_rgb(41_39_33/0.04),0_12px_32px_-25px_rgb(41_39_33/0.34)] sm:p-7">
         {filtered.map((s) => (
           <div key={s.id} className="min-w-0">
             <p className="text-xs font-bold tabular-nums text-primary">

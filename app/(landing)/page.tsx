@@ -102,7 +102,7 @@ export default function LandingPage() {
       <div className="sticky top-3 z-50 px-3 sm:top-4">
         <nav
           aria-label="Site"
-          className="mx-auto flex max-w-2xl items-center gap-1 rounded-full border border-border/70 bg-card/90 py-2 pl-5 pr-2 shadow-[0_12px_32px_-16px_rgb(27_37_96/0.3)] backdrop-blur"
+          className="mx-auto flex max-w-2xl items-center gap-1 rounded-full border border-border/80 bg-card/95 py-2 pl-5 pr-2 shadow-[0_12px_32px_-16px_rgb(41_39_33/0.3)] backdrop-blur"
         >
           <Link href="/" aria-label="8xMeetly home" className="mr-auto">
             <Logo />
@@ -139,12 +139,12 @@ export default function LandingPage() {
       </div>
 
       {/* Hero */}
-      <section className="overflow-x-clip px-6 pb-4 pt-14 text-center sm:pt-20">
-        <h1 className="mx-auto max-w-3xl text-balance text-[42px] font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
+      <section className="overflow-x-clip px-5 pb-4 pt-14 text-center sm:px-6 sm:pt-20">
+        <h1 className="mx-auto max-w-4xl text-balance text-[40px] font-extrabold leading-[1.04] tracking-[-0.045em] sm:text-6xl">
           <span className="text-coral">Every Meeting.</span>{" "}
           <span className="text-ink">Notes, Decisions &amp; Action Items.</span>
         </h1>
-        <p className="mx-auto mt-5 max-w-xl text-pretty text-base leading-relaxed text-muted sm:text-lg">
+        <p className="mx-auto mt-5 max-w-2xl text-pretty text-base leading-7 text-muted sm:text-lg sm:leading-8">
           8xMeetly joins your Google Meet calls, records the conversation, and
           turns it into summaries your team actually reads.
         </p>
@@ -188,7 +188,7 @@ export default function LandingPage() {
             return (
               <div
                 key={f.title}
-                className="rounded-3xl border border-border bg-card p-6 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_20px_44px_-24px_rgb(27_37_96/0.4)] sm:p-7"
+                className="rounded-[22px] border border-border bg-card p-6 shadow-[0_1px_2px_rgb(41_39_33/0.04)] transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_20px_44px_-24px_rgb(41_39_33/0.28)] sm:p-7"
               >
                 <span
                   aria-hidden="true"

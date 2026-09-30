@@ -44,15 +44,15 @@ export default function AskPage() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="mx-auto w-full max-w-[760px]">
       <BackButton fallbackHref={`/dashboard/meetings/${meetingId}`} />
-      <h1 className="mt-3 text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
+      <h1 className="mt-4 text-balance text-[27px] font-extrabold leading-tight tracking-[-0.035em] text-ink sm:text-[32px]">
         Ask AI
       </h1>
-      <p className="mb-5 mt-1 text-pretty text-sm leading-relaxed text-muted">
+      <p className="mb-6 mt-2 text-pretty text-sm leading-6 text-muted sm:text-[15px]">
         Ask anything about this meeting. Answers come straight from the transcript.
       </p>
-      <Card className="p-6 sm:p-7">
+      <Card className="p-5 sm:p-7">
         <form onSubmit={ask} className="space-y-4">
           <Field label="Your Question" htmlFor="ask-question">
             <Textarea

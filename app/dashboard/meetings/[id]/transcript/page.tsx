@@ -28,12 +28,12 @@ export default async function TranscriptPage({
   }
 
   return (
-    <div className="max-w-3xl">
+    <div className="mx-auto w-full max-w-[900px]">
       <BackButton fallbackHref={`/dashboard/meetings/${id}`} />
-      <h1 className="mt-3 text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
+      <h1 className="mt-4 text-balance text-[27px] font-extrabold leading-tight tracking-[-0.035em] text-ink sm:text-[32px]">
         {title}
       </h1>
-      <p className="mb-5 mt-1 text-sm text-muted">Full transcript</p>
+      <p className="mb-6 mt-2 text-sm leading-6 text-muted sm:text-[15px]">Full transcript</p>
       <TranscriptSearch segments={segments} />
     </div>
   );

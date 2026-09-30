@@ -48,17 +48,17 @@ export default function NewMeetingPage() {
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="mx-auto w-full max-w-[720px]">
       <BackButton fallbackHref="/dashboard/meetings" />
-      <h1 className="mt-3 text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
+      <h1 className="mt-4 text-balance text-[27px] font-extrabold leading-tight tracking-[-0.035em] text-ink sm:text-[32px]">
         Start a New Meeting
       </h1>
-      <p className="mt-1 text-pretty text-sm leading-relaxed text-muted">
+      <p className="mt-2 text-pretty text-sm leading-6 text-muted sm:text-[15px]">
         Paste your Google Meet link. The 8xMeetly bot joins, records, and writes
         the notes for you.
       </p>
 
-      <Card className="mt-6 p-6 sm:p-7">
+      <Card className="mt-7 p-5 sm:p-7">
         <form className="space-y-5" onSubmit={onSubmit}>
           <Field
             label="Meeting URL"

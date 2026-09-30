@@ -8,13 +8,14 @@ import { OAuthNotice } from "@/components/auth/oauth-notice";
 
 export default function LoginPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden px-4 py-10">
+      <div aria-hidden="true" className="pointer-events-none absolute left-1/2 top-[-10rem] h-80 w-[min(90vw,56rem)] -translate-x-1/2 rounded-full bg-peach/45 blur-3xl" />
       <Link href="/" aria-label="8xMeetly home">
         <Logo />
       </Link>
-      <Card className="mt-8 w-full max-w-md p-7 sm:p-8">
+      <Card className="relative mt-8 w-full max-w-md p-6 shadow-[0_24px_70px_-42px_rgb(41_39_33/0.5)] sm:p-8">
         <BackButton label="Home" fallbackHref="/" />
-        <h1 className="mt-4 text-balance text-center text-2xl font-extrabold tracking-tight text-ink">
+        <h1 className="mt-5 text-balance text-center text-[26px] font-extrabold tracking-[-0.03em] text-ink">
           Welcome Back
         </h1>
         <p className="mt-1.5 text-center text-sm text-muted">

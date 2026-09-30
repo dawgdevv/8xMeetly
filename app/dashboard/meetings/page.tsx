@@ -26,13 +26,13 @@ export default async function MeetingsPage() {
   }
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-[1120px]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
+          <h1 className="text-balance text-[27px] font-extrabold leading-tight tracking-[-0.035em] text-ink sm:text-[32px]">
             Meetings
           </h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1.5 text-sm leading-6 text-muted sm:text-[15px]">
             {meetings.length === 0
               ? "Your meeting history will live here."
               : `${meetings.length} meeting${meetings.length === 1 ? "" : "s"} captured.`}
@@ -40,14 +40,14 @@ export default async function MeetingsPage() {
         </div>
         <Link
           href="/dashboard/meetings/new"
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_10px_-6px_rgb(64_48_36/0.41)] transition-[background-color,transform] hover:bg-primary-dark active:scale-[0.98]"
+          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_16px_-9px_rgb(128_42_25/0.7)] transition-[background-color,transform] hover:bg-primary-dark active:scale-[0.98]"
         >
           <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
           New Meeting
         </Link>
       </div>
 
-      <div className="mt-6">
+      <div className="mt-8">
         {meetings.length === 0 ? (
           <EmptyState
             icon={Video}

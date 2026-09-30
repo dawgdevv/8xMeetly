@@ -21,7 +21,7 @@ export function Topbar() {
   }
 
   return (
-    <header className="flex items-center gap-3 rounded-3xl border border-border bg-card/80 py-3 pl-4 pr-3 shadow-[0_2px_16px_-8px_rgb(27_37_96/0.15)] backdrop-blur md:py-2.5">
+    <header className="flex min-h-[56px] items-center gap-3 rounded-2xl border border-border/90 bg-card/90 py-2 pl-4 pr-3 shadow-[0_8px_28px_-22px_rgb(41_39_33/0.32)] backdrop-blur md:min-h-[58px] md:rounded-[22px] md:pl-5 md:pr-4">
       <Link href="/dashboard" aria-label="8xMeetly dashboard home" className="md:hidden">
         <Logo />
       </Link>

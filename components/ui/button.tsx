@@ -16,9 +16,9 @@ export function Button({
     <button
       type={type}
       className={cn(
-        "inline-flex cursor-pointer items-center justify-center gap-2 font-semibold transition-[background-color,color,border-color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex cursor-pointer items-center justify-center gap-2 font-semibold transition-[background-color,color,border-color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] disabled:pointer-events-none disabled:opacity-55",
         {
-          "bg-primary text-primary-foreground shadow-[0_8px_10px_-6px_rgb(64_48_36/0.41)] hover:bg-primary-dark active:bg-primary-dark": variant === "default",
+          "bg-primary text-primary-foreground shadow-[0_8px_16px_-9px_rgb(128_42_25/0.7)] hover:bg-primary-dark active:bg-primary-dark": variant === "default",
           "border border-border bg-card text-foreground shadow-sm hover:border-primary/40 hover:text-primary active:bg-background": variant === "outline",
           "text-foreground hover:bg-ink/[0.05] active:bg-ink/[0.08]": variant === "ghost",
           "bg-red-600 text-white hover:bg-red-500 active:bg-red-600": variant === "destructive",
@@ -29,7 +29,7 @@ export function Button({
           "h-11 rounded-full px-5 text-sm": size === "md",
           "h-13 rounded-full px-7 py-3.5 text-base": size === "lg",
           "h-9 w-9 rounded-full": size === "icon",
-          "h-12 rounded-2xl px-6 text-[15px]": size === "pill",
+          "min-h-12 rounded-2xl px-6 text-[15px]": size === "pill",
         },
         className
       )}

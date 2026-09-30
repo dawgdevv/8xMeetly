@@ -15,12 +15,12 @@ export default async function SettingsPage() {
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="mx-auto w-full max-w-[720px]">
       <BackButton fallbackHref="/dashboard" />
-      <h1 className="mt-3 text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
+      <h1 className="mt-4 text-balance text-[27px] font-extrabold leading-tight tracking-[-0.035em] text-ink sm:text-[32px]">
         Settings
       </h1>
-      <p className="mb-5 mt-1 text-sm text-muted">Your workspace preferences.</p>
+      <p className="mb-6 mt-2 text-sm leading-6 text-muted sm:text-[15px]">Your workspace preferences.</p>
       <Card className="divide-y divide-border p-0">
         <div className="flex items-center justify-between gap-4 p-5">
           <div className="min-w-0">

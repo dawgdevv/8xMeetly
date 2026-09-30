@@ -1,30 +1,28 @@
 @import "tailwindcss";
 
 @theme {
-  /* 8x brand — extracted from 8x.social */
+  /* 8xMeetly interface tokens. See DESIGN.md for usage rules. */
   --color-primary: #ce4128;
   --color-primary-dark: #a9331d;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #22d3ee;
-  /* Premium warm neutrals — every gray carries the brand's warmth */
-  --color-background: #f6f1e7;
-  --color-foreground: #2e2a26;
-  --color-card: #fffdf9;
-  --color-card-foreground: #2e2a26;
-  --color-border: #e7dcc9;
-  --color-muted: #7a736a;
+  --color-secondary: #2e7667;
+  --color-background: #f7f4ee;
+  --color-foreground: #292721;
+  --color-card: #fffefa;
+  --color-card-foreground: #292721;
+  --color-border: #e9e2d6;
+  --color-muted: #77736b;
   --color-accent: #ce4128;
-  --color-ink: #1b2560;
+  --color-ink: #1e2b58;
   --color-coral: #ed5942;
   --color-peach: #ffdcb2;
-  /* Warm-tinted stone scale (overrides default cool grays) */
-  --color-stone-100: #f1eae0;
-  --color-stone-200: #e4d9c8;
-  --color-stone-300: #cbbfae;
-  --color-stone-400: #a89a86;
-  --color-stone-500: #7a736a;
-  --color-stone-600: #57504a;
-  --color-stone-700: #453f39;
+  --color-stone-100: #f2eee7;
+  --color-stone-200: #e9e2d6;
+  --color-stone-300: #d4cbbd;
+  --color-stone-400: #aaa193;
+  --color-stone-500: #77736b;
+  --color-stone-600: #5a564f;
+  --color-stone-700: #45413b;
   --font-sans: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -37,10 +35,18 @@ body {
   color: var(--color-foreground);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: rgb(206 65 40 / 0.2);
+  font-feature-settings: "cv11", "ss01";
+  text-rendering: optimizeLegibility;
 }
 
 button {
   touch-action: manipulation;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
 }
 
 ::selection {
@@ -51,6 +57,16 @@ button {
   outline: 2px solid var(--color-primary);
   outline-offset: 2px;
   border-radius: 6px;
+}
+
+:where(button, input, textarea, select):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+::placeholder {
+  color: #9a948a;
+  opacity: 1;
 }
 
 section[id] {

@@ -17,13 +17,13 @@ export function Field({
     <div>
       <label
         htmlFor={htmlFor}
-        className="mb-1.5 block text-sm font-medium text-foreground"
+        className="mb-2 block text-sm font-semibold text-foreground"
       >
         {label}
       </label>
       {children}
       {hint && !error && (
-        <p className="mt-1.5 text-xs text-muted">{hint}</p>
+        <p className="mt-2 text-[13px] leading-5 text-muted">{hint}</p>
       )}
       {error && (
         <p role="alert" className="mt-1.5 text-xs font-medium text-red-600">

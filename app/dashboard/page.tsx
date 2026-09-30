@@ -60,20 +60,20 @@ export default async function DashboardPage() {
   ).length;
 
   return (
-    <div>
+    <div className="mx-auto w-full max-w-[1120px]">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
+          <h1 className="text-balance text-[27px] font-extrabold leading-tight tracking-[-0.035em] text-ink sm:text-[32px]">
             {greetingForHour(new Date().getHours())}
             {userName ? `, ${userName}` : ""}
           </h1>
-          <p className="mt-1 text-sm text-muted">
+          <p className="mt-1.5 text-sm leading-6 text-muted sm:text-[15px]">
             Here is what your meetings turned into.
           </p>
         </div>
         <Link
           href="/dashboard/meetings/new"
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_10px_-6px_rgb(64_48_36/0.41)] transition-[background-color,transform] hover:bg-primary-dark active:scale-[0.98]"
+          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_16px_-9px_rgb(128_42_25/0.7)] transition-[background-color,transform,box-shadow] hover:bg-primary-dark hover:shadow-[0_10px_18px_-9px_rgb(128_42_25/0.7)] active:scale-[0.98]"
         >
           <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
           New Meeting
@@ -96,14 +96,14 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+      <div className="mt-7 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Meetings" value={String(meetings.length)} icon={Video} tint="bg-primary/10 text-primary" />
         <StatCard label="This Week" value={String(thisWeek)} icon={CalendarDays} tint="bg-peach text-ink" />
         <StatCard label="Minutes Recorded" value={String(totalMinutes)} icon={Timer} tint="bg-amber-100 text-amber-700" />
         <StatCard label="Action Items" value={String(actionCount)} icon={ListTodo} tint="bg-green-100 text-green-700" />
       </div>
 
-      <h2 className="mb-3 mt-8 text-lg font-extrabold tracking-tight text-ink">
+      <h2 className="mb-3.5 mt-9 text-lg font-extrabold tracking-tight text-ink sm:text-xl">
         Recent Meetings
       </h2>
       {meetings.length === 0 ? (
