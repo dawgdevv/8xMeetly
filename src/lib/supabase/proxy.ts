@@ -10,7 +10,9 @@ import {
 // Returning an earlier response drops the refreshed cookies and signs
 // the user out on the next request.
 function carrySession(target: NextResponse, source: NextResponse) {
-  target.cookies.setAll(source.cookies.getAll());
+  for (const { name, value, ...options } of source.cookies.getAll()) {
+    target.cookies.set(name, value, options);
+  }
   for (const header of ["cache-control", "expires", "pragma"]) {
     const value = source.headers.get(header);
     if (value) target.headers.set(header, value);
