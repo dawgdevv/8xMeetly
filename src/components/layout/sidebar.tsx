@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -28,12 +29,12 @@ export function Sidebar() {
         ))}
       </nav>
       <div className="p-4 border-t border-border">
-        <a
+        <Link
           href="/dashboard/meetings/new"
           className="flex items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           + New Meeting
-        </a>
+        </Link>
       </div>
     </aside>
   );

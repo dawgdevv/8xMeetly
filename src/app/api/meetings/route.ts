@@ -18,7 +18,7 @@ export async function POST(req: Request) {
   let supabase;
   try {
     supabase = await createClient();
-  } catch (e) {
+  } catch {
     return NextResponse.json(
       { error: "Supabase is not configured." },
       { status: 500 }

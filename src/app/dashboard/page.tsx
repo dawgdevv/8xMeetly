@@ -31,8 +31,10 @@ export default async function DashboardPage() {
   }
 
   const totalMinutes = meetings.reduce((s, m) => s + (m.duration_seconds ?? 0), 0) / 60;
+  // eslint-disable-next-line react-hooks/purity -- server component, computed once per request
+  const weekAgo = Date.now() - 7 * 864e5;
   const thisWeek = meetings.filter(
-    (m) => new Date(m.created_at) > new Date(Date.now() - 7 * 864e5)
+    (m) => new Date(m.created_at).getTime() > weekAgo
   ).length;
 
   const stats = [
