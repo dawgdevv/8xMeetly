@@ -17,6 +17,9 @@ export default async function DashboardPage() {
     created_at: string;
   }> = [];
   let actionCount = 0;
+  let totalMeetings = 0;
+  let totalMinutes = 0;
+  let thisWeek = 0;
   let configured = true;
 
   try {
@@ -33,10 +36,24 @@ export default async function DashboardPage() {
           .select("id,title,status,duration_seconds,created_at")
           .order("created_at", { ascending: false })
           .limit(10),
-        supabase.from("meetings").select("id"),
+        supabase.from("meetings").select("id,duration_seconds,created_at"),
       ]);
       meetings = (data ?? []) as typeof meetings;
-      const ids = ((idRows ?? []) as Array<{ id: string }>).map((r) => r.id);
+      const allMeetings = (idRows ?? []) as Array<{
+        id: string;
+        duration_seconds: number | null;
+        created_at: string;
+      }>;
+      const ids = allMeetings.map((r) => r.id);
+      totalMeetings = allMeetings.length;
+      totalMinutes = Math.round(
+        allMeetings.reduce((sum, m) => sum + (m.duration_seconds ?? 0), 0) / 60
+      );
+      // eslint-disable-next-line react-hooks/purity -- server component, computed once per request
+      const weekAgo = Date.now() - 7 * 864e5;
+      thisWeek = allMeetings.filter(
+        (m) => new Date(m.created_at).getTime() > weekAgo
+      ).length;
       if (ids.length > 0) {
         const { count } = await supabase
           .from("meeting_insights")
@@ -49,15 +66,6 @@ export default async function DashboardPage() {
   } catch {
     configured = false;
   }
-
-  const totalMinutes = Math.round(
-    meetings.reduce((s, m) => s + (m.duration_seconds ?? 0), 0) / 60
-  );
-  // eslint-disable-next-line react-hooks/purity -- server component, computed once per request
-  const weekAgo = Date.now() - 7 * 864e5;
-  const thisWeek = meetings.filter(
-    (m) => new Date(m.created_at).getTime() > weekAgo
-  ).length;
 
   return (
     <div className="mx-auto w-full max-w-[1120px]">
@@ -97,7 +105,7 @@ export default async function DashboardPage() {
       )}
 
       <div className="mt-7 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="Meetings" value={String(meetings.length)} icon={Video} tint="bg-primary/10 text-primary" />
+        <StatCard label="Meetings" value={String(totalMeetings)} icon={Video} tint="bg-primary/10 text-primary" />
         <StatCard label="This Week" value={String(thisWeek)} icon={CalendarDays} tint="bg-peach text-ink" />
         <StatCard label="Minutes Recorded" value={String(totalMinutes)} icon={Timer} tint="bg-amber-100 text-amber-700" />
         <StatCard label="Action Items" value={String(actionCount)} icon={ListTodo} tint="bg-green-100 text-green-700" />
