@@ -40,7 +40,7 @@ export default async function MeetingsPage() {
         </div>
         <Link
           href="/dashboard/meetings/new"
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgb(206_68_24/0.6)] transition-[background-color,transform] hover:bg-[#b53b14] active:scale-[0.98]"
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_10px_-6px_rgb(64_48_36/0.41)] transition-[background-color,transform] hover:bg-primary-dark active:scale-[0.98]"
         >
           <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
           New Meeting

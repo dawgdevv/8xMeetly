@@ -152,13 +152,13 @@ export default async function MeetingDetailPage({
         </span>
         <Link
           href={`/dashboard/meetings/${id}/transcript`}
-          className="flex-1 rounded-full px-4 py-2 text-center text-stone-500 transition-[background-color,color] hover:bg-black/5 hover:text-ink"
+          className="flex-1 rounded-full px-4 py-2 text-center text-stone-500 transition-[background-color,color] hover:bg-ink/[0.05] hover:text-ink"
         >
           Transcript
         </Link>
         <Link
           href={`/dashboard/meetings/${id}/ask`}
-          className="flex-1 rounded-full px-4 py-2 text-center text-stone-500 transition-[background-color,color] hover:bg-black/5 hover:text-ink"
+          className="flex-1 rounded-full px-4 py-2 text-center text-stone-500 transition-[background-color,color] hover:bg-ink/[0.05] hover:text-ink"
         >
           Ask AI
         </Link>
@@ -188,7 +188,7 @@ export default async function MeetingDetailPage({
                       "flex h-7 w-7 items-center justify-center rounded-full",
                       reached && "bg-green-100 text-green-700",
                       current && "bg-primary/10 text-primary",
-                      !reached && !current && "bg-black/5 text-stone-400"
+                      !reached && !current && "bg-ink/[0.06] text-stone-400"
                     )}
                   >
                     {reached ? (

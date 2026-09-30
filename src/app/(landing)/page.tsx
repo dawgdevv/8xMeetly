@@ -49,9 +49,9 @@ const STEPS = [
 function ProductVisual() {
   return (
     <div aria-hidden="true" className="relative mx-auto mt-16 max-w-3xl sm:mt-20">
-      <div className="absolute -top-6 left-1/2 h-24 w-2/3 -translate-x-1/2 rounded-full bg-primary/20 blur-3xl" />
+      <div className="absolute -top-6 left-1/2 h-24 w-2/3 -translate-x-1/2 rounded-full bg-peach blur-3xl" />
       {/* Back card: transcript */}
-      <div className="absolute inset-x-8 top-10 hidden rotate-[-4deg] rounded-3xl border border-border bg-card p-5 shadow-[0_24px_60px_-24px_rgb(35_42_104/0.35)] sm:block">
+      <div className="absolute inset-x-8 top-10 hidden rotate-[-4deg] rounded-3xl border border-border bg-card p-5 shadow-[0_24px_60px_-24px_rgb(27_37_96/0.35)] sm:block">
         <div className="space-y-3 opacity-70">
           {[82, 64, 74].map((w, i) => (
             <div key={i} className="flex items-center gap-2.5">
@@ -62,7 +62,7 @@ function ProductVisual() {
         </div>
       </div>
       {/* Front card: AI summary */}
-      <div className="relative rotate-[1.5deg] rounded-3xl border border-border bg-card p-6 text-left shadow-[0_32px_70px_-28px_rgb(35_42_104/0.45)] sm:p-8">
+      <div className="relative rotate-[1.5deg] rounded-3xl border border-border bg-card p-6 text-left shadow-[0_32px_70px_-28px_rgb(27_37_96/0.45)] sm:p-8">
         <div className="flex items-center justify-between gap-3">
           <p className="truncate text-[15px] font-bold text-ink">Weekly Product Sync</p>
           <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold text-green-800">
@@ -102,20 +102,20 @@ export default function LandingPage() {
       <div className="sticky top-3 z-50 px-3 sm:top-4">
         <nav
           aria-label="Site"
-          className="mx-auto flex max-w-2xl items-center gap-1 rounded-full border border-border/70 bg-card/90 py-2 pl-5 pr-2 shadow-[0_12px_32px_-16px_rgb(35_42_104/0.3)] backdrop-blur"
+          className="mx-auto flex max-w-2xl items-center gap-1 rounded-full border border-border/70 bg-card/90 py-2 pl-5 pr-2 shadow-[0_12px_32px_-16px_rgb(27_37_96/0.3)] backdrop-blur"
         >
           <Link href="/" aria-label="8xMeetly home" className="mr-auto">
             <Logo />
           </Link>
           <Link
             href="#features"
-            className="hidden rounded-full px-3 py-2 text-sm font-semibold text-stone-500 transition-[color,background-color] hover:bg-black/5 hover:text-ink sm:block"
+            className="hidden rounded-full px-3 py-2 text-sm font-semibold text-stone-500 transition-[color,background-color] hover:bg-ink/[0.05] hover:text-ink sm:block"
           >
             Features
           </Link>
           <Link
             href="#how"
-            className="hidden rounded-full px-3 py-2 text-sm font-semibold text-stone-500 transition-[color,background-color] hover:bg-black/5 hover:text-ink sm:block"
+            className="hidden rounded-full px-3 py-2 text-sm font-semibold text-stone-500 transition-[color,background-color] hover:bg-ink/[0.05] hover:text-ink sm:block"
           >
             How It Works
           </Link>
@@ -127,7 +127,7 @@ export default function LandingPage() {
           </Link>
           <Link
             href="/register"
-            className="flex items-center gap-2 rounded-full bg-primary py-1.5 pl-4 pr-1.5 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgb(206_68_24/0.6)] transition-[background-color,transform] hover:bg-[#b53b14] active:scale-[0.98]"
+            className="flex items-center gap-2 rounded-full bg-primary py-1.5 pl-4 pr-1.5 text-sm font-semibold text-white shadow-[0_8px_10px_-6px_rgb(64_48_36/0.41)] transition-[background-color,transform] hover:bg-primary-dark active:scale-[0.98]"
           >
             Get Started
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2b2118]">
@@ -150,7 +150,7 @@ export default function LandingPage() {
         <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
           <Link
             href="/register"
-            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-2.5 text-[15px] font-semibold text-white shadow-[0_12px_28px_-10px_rgb(206_68_24/0.65)] transition-[background-color,transform] hover:bg-[#b53b14] active:scale-[0.98] sm:w-auto sm:pl-7"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-6 py-2.5 text-[15px] font-semibold text-white shadow-[0_12px_20px_-10px_rgb(64_48_36/0.45)] transition-[background-color,transform] hover:bg-primary-dark active:scale-[0.98] sm:w-auto sm:pl-7"
           >
             Start Taking Notes
             <ButtonChip>
@@ -187,7 +187,7 @@ export default function LandingPage() {
             return (
               <div
                 key={f.title}
-                className="rounded-3xl border border-border bg-card p-6 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_20px_44px_-24px_rgb(35_42_104/0.4)] sm:p-7"
+                className="rounded-3xl border border-border bg-card p-6 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-[0_20px_44px_-24px_rgb(27_37_96/0.4)] sm:p-7"
               >
                 <span
                   aria-hidden="true"
@@ -224,7 +224,7 @@ export default function LandingPage() {
           <div className="mt-10 text-center">
             <Link
               href="/register"
-              className="inline-flex items-center gap-2 rounded-2xl bg-primary px-7 py-3 text-[15px] font-semibold text-white shadow-[0_12px_28px_-10px_rgb(240_78_35/0.7)] transition-[background-color,transform] hover:bg-[#b53b14] active:scale-[0.98]"
+              className="inline-flex items-center gap-2 rounded-2xl bg-primary px-7 py-3 text-[15px] font-semibold text-white shadow-[0_12px_20px_-10px_rgb(64_48_36/0.45)] transition-[background-color,transform] hover:bg-primary-dark active:scale-[0.98]"
             >
               Get Started Free
               <ArrowRight size={17} strokeWidth={2.5} aria-hidden="true" />

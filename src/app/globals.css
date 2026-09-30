@@ -1,19 +1,31 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #ce4418;
+  /* 8x brand — extracted from 8x.social */
+  --color-primary: #ce4128;
+  --color-primary-dark: #a9331d;
   --color-primary-foreground: #ffffff;
   --color-secondary: #22d3ee;
-  --color-background: #faf6ef;
-  --color-foreground: #292524;
-  --color-card: #ffffff;
-  --color-card-foreground: #292524;
-  --color-border: #e9e1d3;
-  --color-muted: #6e6963;
-  --color-accent: #ce4418;
-  --color-ink: #232a68;
-  --color-coral: #f04e23;
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Premium warm neutrals — every gray carries the brand's warmth */
+  --color-background: #f6f1e7;
+  --color-foreground: #2e2a26;
+  --color-card: #fffdf9;
+  --color-card-foreground: #2e2a26;
+  --color-border: #e7dcc9;
+  --color-muted: #7a736a;
+  --color-accent: #ce4128;
+  --color-ink: #1b2560;
+  --color-coral: #ed5942;
+  --color-peach: #ffdcb2;
+  /* Warm-tinted stone scale (overrides default cool grays) */
+  --color-stone-100: #f1eae0;
+  --color-stone-200: #e4d9c8;
+  --color-stone-300: #cbbfae;
+  --color-stone-400: #a89a86;
+  --color-stone-500: #7a736a;
+  --color-stone-600: #57504a;
+  --color-stone-700: #453f39;
+  --font-sans: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 html {
@@ -24,7 +36,7 @@ body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
-  -webkit-tap-highlight-color: rgb(206 68 24 / 0.2);
+  -webkit-tap-highlight-color: rgb(206 65 40 / 0.2);
 }
 
 button {
@@ -32,7 +44,7 @@ button {
 }
 
 ::selection {
-  background-color: rgb(240 78 35 / 0.25);
+  background-color: rgb(237 89 66 / 0.25);
 }
 
 :where(a):focus-visible {

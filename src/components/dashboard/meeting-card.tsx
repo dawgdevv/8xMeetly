@@ -23,9 +23,9 @@ export function MeetingCard({
   return (
     <Link
       href={`/dashboard/meetings/${id}`}
-      className="block rounded-3xl focus-visible:outline-none"
+      className="block rounded-[20px] focus-visible:outline-none"
     >
-      <Card className="flex items-center gap-3 p-4 transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:border-primary/40 hover:shadow-[0_12px_28px_-16px_rgb(35_42_104/0.35)] sm:gap-4 sm:p-5">
+      <Card className="flex items-center gap-3 p-4 transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:border-primary/40 hover:shadow-[0_12px_28px_-16px_rgb(27_37_96/0.35)] sm:gap-4 sm:p-5">
         <span
           aria-hidden="true"
           className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-ink/[0.06] text-ink sm:flex"

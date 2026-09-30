@@ -1,6 +1,6 @@
-import { AudioWaveform } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// 8x mark: black rounded box, white "8x" — paired with the Meetly wordmark.
 export function Logo({
   className,
   compact = false,
@@ -9,19 +9,19 @@ export function Logo({
   compact?: boolean;
 }) {
   return (
-    <span className={cn("inline-flex items-center gap-2", className)}>
+    <span
+      translate="no"
+      className={cn("inline-flex items-center gap-2", className)}
+    >
       <span
         aria-hidden="true"
-        className="flex h-8 w-8 items-center justify-center rounded-xl bg-ink text-white"
+        className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#0b0b0c] text-[15px] font-extrabold tracking-tighter text-white"
       >
-        <AudioWaveform size={17} strokeWidth={2.5} />
+        8x
       </span>
       {!compact && (
-        <span
-          translate="no"
-          className="text-[19px] font-extrabold tracking-tight text-ink"
-        >
-          8xMeetly
+        <span className="text-[19px] font-extrabold tracking-tight text-ink">
+          Meetly
         </span>
       )}
     </span>

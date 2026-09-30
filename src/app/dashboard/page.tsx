@@ -60,7 +60,7 @@ export default async function DashboardPage() {
         </div>
         <Link
           href="/dashboard/meetings/new"
-          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgb(206_68_24/0.6)] transition-[background-color,transform] hover:bg-[#b53b14] active:scale-[0.98]"
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_10px_-6px_rgb(64_48_36/0.41)] transition-[background-color,transform] hover:bg-primary-dark active:scale-[0.98]"
         >
           <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
           New Meeting
@@ -85,7 +85,7 @@ export default async function DashboardPage() {
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
         <StatCard label="Meetings" value={String(meetings.length)} icon={Video} tint="bg-primary/10 text-primary" />
-        <StatCard label="This Week" value={String(thisWeek)} icon={CalendarDays} tint="bg-ink/[0.07] text-ink" />
+        <StatCard label="This Week" value={String(thisWeek)} icon={CalendarDays} tint="bg-peach text-ink" />
         <StatCard label="Minutes Recorded" value={String(totalMinutes)} icon={Timer} tint="bg-amber-100 text-amber-700" />
         <StatCard label="Action Items" value="—" icon={ListTodo} tint="bg-green-100 text-green-700" />
       </div>

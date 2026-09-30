@@ -21,7 +21,7 @@ export function Topbar() {
   }
 
   return (
-    <header className="flex items-center gap-3 rounded-3xl border border-border bg-card/80 py-3 pl-4 pr-3 shadow-[0_2px_16px_-8px_rgb(35_42_104/0.15)] backdrop-blur md:py-2.5">
+    <header className="flex items-center gap-3 rounded-3xl border border-border bg-card/80 py-3 pl-4 pr-3 shadow-[0_2px_16px_-8px_rgb(27_37_96/0.15)] backdrop-blur md:py-2.5">
       <Link href="/dashboard" aria-label="8xMeetly dashboard home" className="md:hidden">
         <Logo />
       </Link>
@@ -36,7 +36,7 @@ export function Topbar() {
       <button
         type="button"
         onClick={signOut}
-        className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-stone-500 transition-[background-color,color] hover:bg-black/5 hover:text-foreground"
+        className="flex items-center gap-2 rounded-full px-3 py-2 text-sm font-semibold text-stone-500 transition-[background-color,color] hover:bg-ink/[0.05] hover:text-foreground"
       >
         <LogOut size={16} strokeWidth={2.25} aria-hidden="true" />
         <span className="hidden sm:inline">Sign out</span>
