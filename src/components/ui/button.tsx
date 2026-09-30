@@ -1,33 +1,60 @@
 import { cn } from "@/lib/utils";
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: "default" | "outline" | "ghost";
-  size?: "sm" | "md" | "lg";
+  variant?: "default" | "outline" | "ghost" | "destructive" | "ink";
+  size?: "sm" | "md" | "lg" | "icon" | "pill";
 }
 
 export function Button({
   className,
   variant = "default",
   size = "md",
+  type = "button",
   ...props
 }: ButtonProps) {
   return (
     <button
+      type={type}
       className={cn(
-        "inline-flex items-center justify-center rounded-lg font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:pointer-events-none disabled:opacity-50",
+        "inline-flex cursor-pointer items-center justify-center gap-2 font-semibold transition-[background-color,color,border-color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50",
         {
-          "bg-primary text-primary-foreground hover:bg-primary/90": variant === "default",
-          "border border-border bg-transparent hover:bg-card": variant === "outline",
-          "hover:bg-card": variant === "ghost",
+          "bg-primary text-primary-foreground shadow-[0_8px_20px_-8px_rgb(206_68_24/0.6)] hover:bg-[#b53b14] active:bg-[#b53b14]": variant === "default",
+          "border border-border bg-card text-foreground shadow-sm hover:border-primary/40 hover:text-primary active:bg-background": variant === "outline",
+          "text-foreground hover:bg-black/5 active:bg-black/10": variant === "ghost",
+          "bg-red-600 text-white hover:bg-red-500 active:bg-red-600": variant === "destructive",
+          "bg-ink text-white hover:bg-ink/90 active:bg-ink": variant === "ink",
         },
         {
-          "h-8 px-3 text-sm": size === "sm",
-          "h-10 px-4 text-sm": size === "md",
-          "h-12 px-6 text-base": size === "lg",
+          "h-9 rounded-full px-4 text-sm": size === "sm",
+          "h-11 rounded-full px-5 text-sm": size === "md",
+          "h-13 rounded-full px-7 py-3.5 text-base": size === "lg",
+          "h-9 w-9 rounded-full": size === "icon",
+          "h-12 rounded-2xl px-6 text-[15px]": size === "pill",
         },
         className
       )}
       {...props}
     />
+  );
+}
+
+/** Dark icon chip used inside CTA buttons, echoing the reference design. */
+export function ButtonChip({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "ml-1 flex h-7 w-7 items-center justify-center rounded-full bg-[#2b2118] text-white",
+        className
+      )}
+    >
+      {children}
+    </span>
   );
 }

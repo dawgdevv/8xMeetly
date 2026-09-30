@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { LoaderCircle } from "lucide-react";
+import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Field, FormStatus } from "@/components/ui/field";
 import { createClient } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
@@ -30,40 +34,77 @@ export default function RegisterPage() {
       router.push("/dashboard");
       router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Registration failed.");
+      setError(
+        err instanceof Error
+          ? `${err.message} Fix it and try again.`
+          : "Registration failed. Fix the highlighted fields and try again."
+      );
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <Card className="w-full max-w-md p-8">
-        <h1 className="text-2xl font-bold mb-2 text-center">Create your account</h1>
-        <p className="text-sm text-muted text-center mb-6">Start with Meetly AI</p>
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <div>
-            <label className="text-sm text-muted block mb-1">Name</label>
-            <Input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Jane Doe" />
-          </div>
-          <div>
-            <label className="text-sm text-muted block mb-1">Email</label>
-            <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" />
-          </div>
-          <div>
-            <label className="text-sm text-muted block mb-1">Password</label>
-            <Input type="password" required value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
-          </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <Button className="w-full" disabled={loading}>
-            {loading ? "Creating account…" : "Create account"}
+    <div className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
+      <Link href="/" aria-label="8xMeetly home">
+        <Logo />
+      </Link>
+      <Card className="mt-8 w-full max-w-md p-7 sm:p-8">
+        <h1 className="text-balance text-center text-2xl font-extrabold tracking-tight text-ink">
+          Create Your Account
+        </h1>
+        <p className="mt-1.5 text-center text-sm text-muted">
+          Start capturing meetings in under a minute
+        </p>
+        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+          <Field label="Name" htmlFor="register-name">
+            <Input
+              id="register-name"
+              name="name"
+              type="text"
+              autoComplete="name"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Jordan Smith…"
+            />
+          </Field>
+          <Field label="Email" htmlFor="register-email">
+            <Input
+              id="register-email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              spellCheck={false}
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@company.com…"
+            />
+          </Field>
+          <Field label="Password" htmlFor="register-password" hint="8+ characters recommended.">
+            <Input
+              id="register-password"
+              name="new-password"
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Choose a password…"
+            />
+          </Field>
+          <FormStatus error={error} />
+          <Button type="submit" size="lg" className="w-full" disabled={loading}>
+            {loading && <LoaderCircle size={17} aria-hidden="true" className="animate-spin" />}
+            {loading ? "Creating account…" : "Create Account"}
           </Button>
         </form>
-        <p className="text-sm text-muted text-center mt-4">
+        <p className="mt-5 text-center text-sm text-muted">
           Already have an account?{" "}
-          <a href="/login" className="text-primary hover:underline">
+          <Link href="/login" className="font-semibold text-primary hover:underline">
             Log in
-          </a>
+          </Link>
         </p>
       </Card>
     </div>

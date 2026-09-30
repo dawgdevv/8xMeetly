@@ -3,9 +3,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { ArrowLeft, LoaderCircle, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Field, FormStatus } from "@/components/ui/field";
 
 export default function AskPage() {
   const params = useParams<{ id: string }>();
@@ -31,7 +33,11 @@ export default function AskPage() {
       if (!res.ok) throw new Error(json.error ?? "Ask failed.");
       setAnswer(json.answer);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ask failed.");
+      setError(
+        err instanceof Error
+          ? `${err.message} Try asking again.`
+          : "Could not answer. Try asking again."
+      );
     } finally {
       setLoading(false);
     }
@@ -39,26 +45,59 @@ export default function AskPage() {
 
   return (
     <div className="max-w-2xl">
-      <Link href={`/dashboard/meetings/${meetingId}`} className="text-sm text-muted hover:text-foreground">
-        ← Back to overview
+      <Link
+        href={`/dashboard/meetings/${meetingId}`}
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-stone-500 transition-colors hover:text-ink"
+      >
+        <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
+        Back to overview
       </Link>
-      <h1 className="text-2xl font-bold mt-2 mb-6">Ask AI</h1>
-      <Card className="p-6">
+      <h1 className="mt-3 text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
+        Ask AI
+      </h1>
+      <p className="mb-5 mt-1 text-pretty text-sm leading-relaxed text-muted">
+        Ask anything about this meeting. Answers come straight from the transcript.
+      </p>
+      <Card className="p-6 sm:p-7">
         <form onSubmit={ask} className="space-y-4">
-          <Textarea
-            rows={3}
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="What did Alex say about the launch?"
-          />
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <Button disabled={loading || !question.trim()}>
-            {loading ? "Thinking…" : "Ask"}
+          <Field label="Your Question" htmlFor="ask-question">
+            <Textarea
+              id="ask-question"
+              name="question"
+              rows={3}
+              autoComplete="off"
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              placeholder="What did the team decide about the launch…"
+            />
+          </Field>
+          <FormStatus error={error} />
+          <Button type="submit" size="pill" disabled={loading || !question.trim()}>
+            {loading ? (
+              <>
+                <LoaderCircle size={17} aria-hidden="true" className="animate-spin" />
+                Thinking…
+              </>
+            ) : (
+              <>
+                Ask
+                <Send size={16} strokeWidth={2.25} aria-hidden="true" />
+              </>
+            )}
           </Button>
         </form>
         {answer && (
-          <div className="mt-6 rounded-lg border border-border bg-background p-4">
-            <p className="text-sm leading-relaxed whitespace-pre-wrap">{answer}</p>
+          <div
+            aria-live="polite"
+            className="mt-6 rounded-2xl bg-background p-5 ring-1 ring-border"
+          >
+            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
+              <Sparkles size={13} aria-hidden="true" />
+              Answer
+            </p>
+            <p className="mt-2 whitespace-pre-wrap text-pretty text-[15px] leading-relaxed text-stone-700">
+              {answer}
+            </p>
           </div>
         )}
       </Card>

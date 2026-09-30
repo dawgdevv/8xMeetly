@@ -1,16 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { ArrowLeft, ArrowRight, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Field, FormStatus } from "@/components/ui/field";
 import { isValidMeetingUrl } from "@/lib/utils/meetings";
 
 export default function NewMeetingPage() {
   const router = useRouter();
   const [meetingUrl, setMeetingUrl] = useState("");
-  const [botName, setBotName] = useState("Meetly Notetaker");
+  const [botName, setBotName] = useState("8xMeetly Notetaker");
+  const [urlError, setUrlError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -18,9 +22,10 @@ export default function NewMeetingPage() {
     e.preventDefault();
     setError(null);
     if (!isValidMeetingUrl(meetingUrl)) {
-      setError("Please paste a valid Google Meet URL (https://meet.google.com/…).");
+      setUrlError("Enter a valid Google Meet link, like https://meet.google.com/abc-defg-hij…");
       return;
     }
+    setUrlError(null);
     setLoading(true);
     try {
       const res = await fetch("/api/meetings", {
@@ -32,7 +37,11 @@ export default function NewMeetingPage() {
       if (!res.ok) throw new Error(json.error ?? "Failed to create meeting.");
       router.push(`/dashboard/meetings/${json.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to create meeting.");
+      setError(
+        err instanceof Error
+          ? `${err.message} Try again in a moment.`
+          : "Failed to create the meeting. Try again in a moment."
+      );
     } finally {
       setLoading(false);
     }
@@ -40,33 +49,70 @@ export default function NewMeetingPage() {
 
   return (
     <div className="max-w-xl">
-      <h1 className="text-2xl font-bold mb-2">Start a new meeting</h1>
-      <p className="text-sm text-muted mb-6">
-        Paste your Google Meet link — Meetly&apos;s bot will join and take notes.
+      <Link
+        href="/dashboard/meetings"
+        className="inline-flex items-center gap-1.5 text-sm font-semibold text-stone-500 transition-colors hover:text-ink"
+      >
+        <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
+        All meetings
+      </Link>
+      <h1 className="mt-3 text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
+        Start a New Meeting
+      </h1>
+      <p className="mt-1 text-pretty text-sm leading-relaxed text-muted">
+        Paste your Google Meet link. The 8xMeetly bot joins, records, and writes
+        the notes for you.
       </p>
-      <Card className="p-6">
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <div>
-            <label className="text-sm text-muted block mb-1">Meeting URL</label>
+
+      <Card className="mt-6 p-6 sm:p-7">
+        <form className="space-y-5" onSubmit={onSubmit}>
+          <Field
+            label="Meeting URL"
+            htmlFor="meeting-url"
+            error={urlError}
+            hint="Google Meet only in this version. Zoom and Teams arrive in V2."
+          >
             <Input
+              id="meeting-url"
+              name="meeting-url"
               type="url"
+              inputMode="url"
+              autoComplete="off"
+              spellCheck={false}
               required
               value={meetingUrl}
               onChange={(e) => setMeetingUrl(e.target.value)}
-              placeholder="https://meet.google.com/abc-defg-hij"
+              placeholder="https://meet.google.com/abc-defg-hij…"
             />
-          </div>
-          <div>
-            <label className="text-sm text-muted block mb-1">Bot name</label>
-            <Input value={botName} onChange={(e) => setBotName(e.target.value)} maxLength={100} />
-          </div>
-          {error && <p className="text-sm text-red-500">{error}</p>}
-          <Button className="w-full" disabled={loading}>
-            {loading ? "Joining…" : "Join Meeting"}
+          </Field>
+          <Field label="Bot Name" htmlFor="bot-name">
+            <Input
+              id="bot-name"
+              name="bot-name"
+              type="text"
+              autoComplete="off"
+              maxLength={100}
+              value={botName}
+              onChange={(e) => setBotName(e.target.value)}
+              placeholder="8xMeetly Notetaker…"
+            />
+          </Field>
+          <FormStatus error={error} />
+          <Button type="submit" size="pill" className="w-full" disabled={loading}>
+            {loading ? (
+              <>
+                <LoaderCircle size={17} aria-hidden="true" className="animate-spin" />
+                Joining…
+              </>
+            ) : (
+              <>
+                Join Meeting
+                <ArrowRight size={17} strokeWidth={2.5} aria-hidden="true" />
+              </>
+            )}
           </Button>
         </form>
       </Card>
-      <p className="text-xs text-muted mt-4">MVP supports Google Meet only. Zoom & Teams land in V2.</p>
     </div>
   );
 }

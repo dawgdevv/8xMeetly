@@ -1,31 +1,23 @@
 import { cn } from "@/lib/utils";
-import type { ReactNode } from "react";
+import {
+  CheckCircle2,
+  CircleDashed,
+  Cpu,
+  LoaderCircle,
+  Radio,
+  Clock,
+  XCircle,
+  type LucideIcon,
+} from "lucide-react";
 
-export function Badge({
-  children,
-  className,
-  tone = "default",
-}: {
-  children: ReactNode;
-  className?: string;
-  tone?: "default" | "green" | "amber" | "red" | "blue";
-}) {
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
-        tone === "default" && "bg-card border border-border text-muted",
-        tone === "green" && "bg-green-500/10 text-green-500",
-        tone === "amber" && "bg-amber-500/10 text-amber-500",
-        tone === "red" && "bg-red-500/10 text-red-500",
-        tone === "blue" && "bg-primary/10 text-primary",
-        className
-      )}
-    >
-      {children}
-    </span>
-  );
-}
+const STATUS_META: Record<string, { label: string; icon: LucideIcon; classes: string }> = {
+  scheduled: { label: "Scheduled", icon: Clock, classes: "bg-stone-100 text-stone-600" },
+  joining: { label: "Joining", icon: LoaderCircle, classes: "bg-amber-100 text-amber-800" },
+  in_progress: { label: "Recording", icon: Radio, classes: "bg-red-100 text-red-700" },
+  processing: { label: "Processing", icon: Cpu, classes: "bg-sky-100 text-sky-800" },
+  completed: { label: "Completed", icon: CheckCircle2, classes: "bg-green-100 text-green-800" },
+  failed: { label: "Failed", icon: XCircle, classes: "bg-red-100 text-red-700" },
+};
 
 export function statusTone(status: string): "default" | "green" | "amber" | "red" | "blue" {
   switch (status) {
@@ -41,4 +33,55 @@ export function statusTone(status: string): "default" | "green" | "amber" | "red
     default:
       return "default";
   }
+}
+
+export function Badge({
+  children,
+  className,
+  tone = "default",
+}: {
+  children: React.ReactNode;
+  className?: string;
+  tone?: "default" | "green" | "amber" | "red" | "blue";
+}) {
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-xs font-semibold",
+        tone === "default" && "bg-stone-100 text-stone-600",
+        tone === "green" && "bg-green-100 text-green-800",
+        tone === "amber" && "bg-amber-100 text-amber-800",
+        tone === "red" && "bg-red-100 text-red-700",
+        tone === "blue" && "bg-sky-100 text-sky-800",
+        className
+      )}
+    >
+      {children}
+    </span>
+  );
+}
+
+export function StatusBadge({ status }: { status: string }) {
+  const meta = STATUS_META[status] ?? {
+    label: status,
+    icon: CircleDashed,
+    classes: "bg-stone-100 text-stone-600",
+  };
+  const Icon = meta.icon;
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold",
+        meta.classes
+      )}
+    >
+      <Icon
+        size={13}
+        strokeWidth={2.5}
+        aria-hidden="true"
+        className={status === "joining" ? "animate-spin" : undefined}
+      />
+      {meta.label}
+    </span>
+  );
 }

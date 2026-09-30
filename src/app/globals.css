@@ -1,35 +1,70 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #7c3aed;
+  --color-primary: #ce4418;
   --color-primary-foreground: #ffffff;
-  --color-secondary: #06b6d4;
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
-  --color-card: #18181b;
-  --color-card-foreground: #fafafa;
-  --color-border: #27272a;
-  --color-muted: #a1a1aa;
-  --color-accent: #7c3aed;
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --color-secondary: #22d3ee;
+  --color-background: #faf6ef;
+  --color-foreground: #292524;
+  --color-card: #ffffff;
+  --color-card-foreground: #292524;
+  --color-border: #e9e1d3;
+  --color-muted: #6e6963;
+  --color-accent: #ce4418;
+  --color-ink: #232a68;
+  --color-coral: #f04e23;
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html {
+  color-scheme: light;
 }
 
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
   font-family: var(--font-sans);
+  -webkit-tap-highlight-color: rgb(206 68 24 / 0.2);
+}
+
+button {
+  touch-action: manipulation;
+}
+
+::selection {
+  background-color: rgb(240 78 35 / 0.25);
+}
+
+:where(a):focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+section[id] {
+  scroll-margin-top: 6rem;
 }
 
 /* Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-background);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
   background: var(--color-border);
-  border-radius: 3px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

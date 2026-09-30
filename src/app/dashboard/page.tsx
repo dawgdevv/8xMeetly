@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { CalendarDays, ListTodo, Plus, Timer, Video } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge, statusTone } from "@/components/ui/badge";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { EmptyState } from "@/components/dashboard/empty-state";
+import { MeetingCard } from "@/components/dashboard/meeting-card";
 import { createClient } from "@/lib/supabase/server";
-import { formatDuration } from "@/lib/utils/meetings";
+import { greetingForHour } from "@/lib/utils/format";
 
 export default async function DashboardPage() {
+  let userName: string | null = null;
   let meetings: Array<{
     id: string;
     title: string | null;
@@ -19,6 +22,10 @@ export default async function DashboardPage() {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
+      userName =
+        (user.user_metadata?.full_name as string | undefined)?.split(" ")[0] ??
+        user.email?.split("@")[0] ??
+        null;
       const { data } = await supabase
         .from("meetings")
         .select("id,title,status,duration_seconds,created_at")
@@ -30,73 +37,81 @@ export default async function DashboardPage() {
     configured = false;
   }
 
-  const totalMinutes = meetings.reduce((s, m) => s + (m.duration_seconds ?? 0), 0) / 60;
+  const totalMinutes = Math.round(
+    meetings.reduce((s, m) => s + (m.duration_seconds ?? 0), 0) / 60
+  );
   // eslint-disable-next-line react-hooks/purity -- server component, computed once per request
   const weekAgo = Date.now() - 7 * 864e5;
   const thisWeek = meetings.filter(
     (m) => new Date(m.created_at).getTime() > weekAgo
   ).length;
 
-  const stats = [
-    { label: "Meetings", value: String(meetings.length) },
-    { label: "This Week", value: String(thisWeek) },
-    { label: "Minutes Recorded", value: String(Math.round(totalMinutes)) },
-    { label: "Action Items", value: "—" },
-  ];
-
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
-        <Link href="/dashboard/meetings/new">
-          <Button>+ New Meeting</Button>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
+            {greetingForHour(new Date().getHours())}
+            {userName ? `, ${userName}` : ""}
+          </h1>
+          <p className="mt-1 text-sm text-muted">
+            Here is what your meetings turned into.
+          </p>
+        </div>
+        <Link
+          href="/dashboard/meetings/new"
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgb(206_68_24/0.6)] transition-[background-color,transform] hover:bg-[#b53b14] active:scale-[0.98]"
+        >
+          <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
+          New Meeting
         </Link>
       </div>
 
       {!configured && (
-        <Card className="p-4 mb-6 border-amber-500/30">
-          <p className="text-sm text-muted">
-            Supabase is not configured yet. Set <code>NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
-            <code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code>, then run{" "}
-            <code>supabase/migrations/0001_meetly_foundation.sql</code>.
+        <Card className="mt-5 border-amber-300 bg-amber-50 p-4">
+          <p className="text-sm leading-relaxed text-amber-900">
+            Supabase is not connected yet. Set{" "}
+            <code className="rounded bg-amber-100 px-1 font-mono text-[13px]">NEXT_PUBLIC_SUPABASE_URL</code>{" "}
+            and{" "}
+            <code className="rounded bg-amber-100 px-1 font-mono text-[13px]">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>,
+            then run{" "}
+            <code className="rounded bg-amber-100 px-1 font-mono text-[13px]">
+              supabase/migrations/0001_meetly_foundation.sql
+            </code>
+            .
           </p>
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {stats.map((s) => (
-          <Card key={s.label} className="p-4">
-            <p className="text-sm text-muted">{s.label}</p>
-            <p className="text-2xl font-bold mt-1">{s.value}</p>
-          </Card>
-        ))}
+      <div className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+        <StatCard label="Meetings" value={String(meetings.length)} icon={Video} tint="bg-primary/10 text-primary" />
+        <StatCard label="This Week" value={String(thisWeek)} icon={CalendarDays} tint="bg-ink/[0.07] text-ink" />
+        <StatCard label="Minutes Recorded" value={String(totalMinutes)} icon={Timer} tint="bg-amber-100 text-amber-700" />
+        <StatCard label="Action Items" value="—" icon={ListTodo} tint="bg-green-100 text-green-700" />
       </div>
 
-      <h2 className="text-lg font-semibold mb-4">Recent Meetings</h2>
+      <h2 className="mb-3 mt-8 text-lg font-extrabold tracking-tight text-ink">
+        Recent Meetings
+      </h2>
       {meetings.length === 0 ? (
-        <Card className="p-12 text-center">
-          <p className="font-semibold mb-1">No meetings yet</p>
-          <p className="text-sm text-muted mb-6">
-            Connect your first meeting and let Meetly take the notes for you.
-          </p>
-          <Link href="/dashboard/meetings/new">
-            <Button>+ Start Your First Meeting</Button>
-          </Link>
-        </Card>
+        <EmptyState
+          icon={Video}
+          title="No Meetings Yet"
+          body="Connect your first meeting and let 8xMeetly take the notes for you."
+          actionLabel="Start Your First Meeting"
+          actionHref="/dashboard/meetings/new"
+        />
       ) : (
         <div className="space-y-3">
           {meetings.map((m) => (
-            <Link key={m.id} href={`/dashboard/meetings/${m.id}`}>
-              <Card className="p-4 flex items-center justify-between hover:border-primary/50 transition-colors">
-                <div>
-                  <p className="font-medium">{m.title ?? "Untitled meeting"}</p>
-                  <p className="text-sm text-muted">
-                    {new Date(m.created_at).toLocaleDateString()} · {formatDuration(m.duration_seconds)}
-                  </p>
-                </div>
-                <Badge tone={statusTone(m.status)}>{m.status}</Badge>
-              </Card>
-            </Link>
+            <MeetingCard
+              key={m.id}
+              id={m.id}
+              title={m.title}
+              status={m.status}
+              durationSeconds={m.duration_seconds}
+              createdAt={m.created_at}
+            />
           ))}
         </div>
       )}
