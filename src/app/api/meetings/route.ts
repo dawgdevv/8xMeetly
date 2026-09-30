@@ -1,0 +1,110 @@
+import { NextResponse } from "next/server";
+import { z } from "zod";
+import { createClient } from "@/lib/supabase/server";
+import { isValidMeetingUrl } from "@/lib/utils/meetings";
+import {
+  isMeetingBaasConfigured,
+  joinMeetingViaBaas,
+} from "@/lib/meeting-baas/client";
+
+const CreateMeetingSchema = z.object({
+  meetingUrl: z.string().url(),
+  botName: z.string().max(100).optional(),
+  title: z.string().max(200).optional(),
+});
+
+// POST /api/meetings — create meeting record + dispatch Meeting BaaS bot (PRD §8)
+export async function POST(req: Request) {
+  let supabase;
+  try {
+    supabase = await createClient();
+  } catch (e) {
+    return NextResponse.json(
+      { error: "Supabase is not configured." },
+      { status: 500 }
+    );
+  }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const body = await req.json().catch(() => null);
+  const parsed = CreateMeetingSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
+
+  const { meetingUrl, botName, title } = parsed.data;
+  if (!isValidMeetingUrl(meetingUrl)) {
+    return NextResponse.json(
+      { error: "Only Google Meet URLs (https://meet.google.com/…) are supported in MVP." },
+      { status: 400 }
+    );
+  }
+
+  const { data: meeting, error } = await supabase
+    .from("meetings")
+    .insert({
+      user_id: user.id,
+      title: title ?? null,
+      meeting_url: meetingUrl,
+      status: "scheduled",
+    })
+    .select("id")
+    .single();
+
+  if (error || !meeting) {
+    return NextResponse.json(
+      { error: error?.message ?? "Failed to create meeting." },
+      { status: 500 }
+    );
+  }
+
+  // Dispatch bot (Phase 2). If BaaS is not configured yet, keep the
+  // meeting in `scheduled` so the flow can be tested end-to-end later.
+  if (isMeetingBaasConfigured()) {
+    try {
+      const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/meeting-baas`;
+      const { botId } = await joinMeetingViaBaas({
+        meetingUrl,
+        botName: botName ?? "Meetly Notetaker",
+        webhookUrl,
+      });
+      await supabase
+        .from("meetings")
+        .update({ bot_id: botId, status: "joining" })
+        .eq("id", meeting.id);
+    } catch (e) {
+      await supabase
+        .from("meetings")
+        .update({ status: "failed" })
+        .eq("id", meeting.id);
+      return NextResponse.json(
+        { error: e instanceof Error ? e.message : "Bot dispatch failed." },
+        { status: 502 }
+      );
+    }
+  }
+
+  return NextResponse.json({ id: meeting.id }, { status: 201 });
+}
+
+// GET /api/meetings — list own meetings
+export async function GET() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { data, error } = await supabase
+    .from("meetings")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(50);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ meetings: data });
+}
