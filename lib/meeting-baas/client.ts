@@ -1,10 +1,10 @@
-// Meeting BaaS integration layer (Phase 2).
-// Meetly never implements its own browser-bot infrastructure —
-// all join/record/transcribe duties are delegated to Meeting BaaS.
-//
-// NOTE: Implement against the current Meeting BaaS API docs, not a
-// hard-coded older payload. The types below are the minimal contract
-// Meetly needs; extend them when wiring the real API.
+// Meeting BaaS integration layer.
+// Verified against https://docs.meetingbaas.com (bot webhook reference):
+// - Base URL: https://api.meetingbaas.com, auth via `x-meeting-baas-api-key`
+// - Webhook events: `complete` | `failed` | `transcription_complete`
+// - bot_id lives in `data.bot_id`; transcript segments carry `words[]`
+//   (no per-segment `text` — reconstruct from words); recording is `data.mp4`.
+// Meetly never implements its own browser-bot infrastructure.
 
 export interface JoinMeetingParams {
   meetingUrl: string;
@@ -17,17 +17,39 @@ export interface JoinMeetingResult {
 }
 
 export type BaasEventType =
-  | "bot.joining"
-  | "bot.joined"
-  | "bot.in_meeting"
-  | "bot.completed"
-  | "bot.failed";
+  | "complete"
+  | "failed"
+  | "transcription_complete";
+
+export interface BaasTranscriptWord {
+  start: number;
+  end: number;
+  word: string;
+}
+
+export interface BaasTranscriptSegment {
+  speaker?: string;
+  offset?: number;
+  start_time?: number;
+  end_time?: number;
+  words?: BaasTranscriptWord[];
+  /** Non-standard fallback — real payloads use `words`. */
+  text?: string;
+}
 
 export interface BaasWebhookPayload {
-  event: BaasEventType | string;
-  bot_id?: string;
-  botId?: string;
-  data?: Record<string, unknown>;
+  event: string;
+  data?: {
+    bot_id?: string;
+    event_uuid?: string | null;
+    transcript?: BaasTranscriptSegment[];
+    speakers?: string[];
+    mp4?: string;
+    audio?: string;
+    error?: string;
+    message?: string;
+    [key: string]: unknown;
+  };
 }
 
 function config() {
@@ -50,17 +72,15 @@ export async function joinMeetingViaBaas(
     throw new Error("Meeting BaaS is not configured (MEETING_BAAS_API_KEY).");
   }
 
-  // TODO: pin this to the current Meeting BaaS API reference
-  // (endpoint path + body schema) before going live.
   const res = await fetch(`${baseUrl}/bots`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "x-spoke-api-key": apiKey,
+      "x-meeting-baas-api-key": apiKey,
     },
     body: JSON.stringify({
       meeting_url: params.meetingUrl,
-      bot_name: params.botName ?? "Meetly Notetaker",
+      bot_name: params.botName ?? "8xMeetly Notetaker",
       webhook_url: params.webhookUrl,
     }),
   });
@@ -77,5 +97,17 @@ export async function joinMeetingViaBaas(
 }
 
 export function extractBotId(payload: BaasWebhookPayload): string | null {
-  return payload.bot_id ?? payload.botId ?? null;
+  return payload.data?.bot_id ?? null;
+}
+
+/** Reconstruct segment text from word-level timestamps. */
+export function segmentText(segment: BaasTranscriptSegment): string {
+  if (Array.isArray(segment.words) && segment.words.length > 0) {
+    return segment.words.map((w) => w.word).join(" ");
+  }
+  return segment.text ?? "";
+}
+
+export function segmentStart(segment: BaasTranscriptSegment): number | null {
+  return segment.start_time ?? segment.offset ?? null;
 }

@@ -1,25 +1,60 @@
+import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { extractBotId, type BaasWebhookPayload } from "@/lib/meeting-baas/client";
+import {
+  extractBotId,
+  segmentStart,
+  segmentText,
+  type BaasWebhookPayload,
+} from "@/lib/meeting-baas/client";
 import { normalizeTranscript } from "@/lib/utils/meetings";
 import { summarizeTranscript } from "@/lib/ai/summarize";
 
-// POST /api/webhooks/meeting-baas (PRD §12)
-// Lifecycle: bot.joining → bot.joined → bot.in_meeting → bot.completed
+// POST /api/webhooks/meeting-baas
+// Real Meeting BaaS contract (docs.meetingbaas.com):
+//   event `complete`  → recording + transcript ready (data.mp4, data.transcript[])
+//   event `failed`    → bot failed (data.error, data.message)
+//   event `transcription_complete` → retranscription available (data.bot_id only)
+// Always answer fast; Meeting BaaS retries failed deliveries.
+
+function validSignature(
+  rawBody: string,
+  signature: string | null,
+  secret: string
+): boolean {
+  if (!signature) return false;
+  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
+  const a = Buffer.from(signature);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
 export async function POST(req: Request) {
-  // Optional shared-secret check (configure MEETING_BAAS_WEBHOOK_SECRET in BaaS dashboard).
-  const secret = process.env.MEETING_BAAS_WEBHOOK_SECRET;
-  if (secret) {
-    const sig =
-      req.headers.get("x-webhook-secret") ??
-      req.headers.get("x-meeting-baas-secret");
-    if (sig !== secret) {
-      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  const rawBody = await req.text();
+
+  // Primary auth (per docs): the request carries our own API key back in
+  // `x-meeting-baas-api-key`. Optional hardening: HMAC-SHA256 of the raw
+  // body in `x-meetingbaas-signature` when MEETING_BAAS_WEBHOOK_SECRET is set.
+  const apiKey = process.env.MEETING_BAAS_API_KEY;
+  if (apiKey) {
+    const headerKey = req.headers.get("x-meeting-baas-api-key");
+    if (headerKey !== apiKey) {
+      const secret = process.env.MEETING_BAAS_WEBHOOK_SECRET ?? "";
+      const sig = req.headers.get("x-meetingbaas-signature");
+      if (!secret || !validSignature(rawBody, sig, secret)) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
     }
   }
 
-  const payload = (await req.json().catch(() => null)) as BaasWebhookPayload | null;
-  if (!payload?.event) {
+  const payload = ((): BaasWebhookPayload | null => {
+    try {
+      return JSON.parse(rawBody) as BaasWebhookPayload;
+    } catch {
+      return null;
+    }
+  })();
+  if (!payload?.event || typeof payload.event !== "string") {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
@@ -43,40 +78,48 @@ export async function POST(req: Request) {
 
   const event = payload.event;
   const data = payload.data ?? {};
+  const meetingId = (meeting as { id: string }).id;
 
-  if (event === "bot.joining" || event === "bot.joined" || event === "bot.in_meeting") {
-    const status = event === "bot.in_meeting" ? "in_progress" : "joining";
-    await admin.from("meetings").update({ status }).eq("id", meeting.id);
+  if (event === "failed") {
+    console.error("Meeting BaaS bot failed:", data.error, data.message);
+    await admin.from("meetings").update({ status: "failed" }).eq("id", meetingId);
     return NextResponse.json({ ok: true });
   }
 
-  if (event === "bot.failed") {
-    await admin.from("meetings").update({ status: "failed" }).eq("id", meeting.id);
+  if (event === "transcription_complete") {
+    // Retranscription landed — MVP has nothing to refetch, just ack.
+    await admin
+      .from("meetings")
+      .update({ transcript_status: "received" })
+      .eq("id", meetingId);
     return NextResponse.json({ ok: true });
   }
 
-  if (event === "bot.completed") {
+  if (event === "complete") {
+    // NOTE: data.mp4 is valid 24h — download for permanent storage (V2).
     await admin
       .from("meetings")
       .update({
         status: "processing",
         ended_at: new Date().toISOString(),
-        recording_url: (data.recording_url as string) ?? null,
+        recording_url: typeof data.mp4 === "string" ? data.mp4 : null,
         transcript_status: "received",
       })
-      .eq("id", meeting.id);
+      .eq("id", meetingId);
 
-    // Persist transcript segments when the payload carries them.
-    const rawSegments = data.transcript ?? data.transcript_segments;
-    if (Array.isArray(rawSegments) && rawSegments.length > 0) {
-      const rows = rawSegments.map((s: Record<string, unknown>) => ({
-        meeting_id: meeting.id,
-        speaker: (s.speaker as string) ?? null,
-        speaker_id: (s.speaker_id as string) ?? null,
-        text: String(s.text ?? ""),
-        start_time: (s.start_time as number) ?? null,
-        end_time: (s.end_time as number) ?? null,
-      }));
+    // Persist transcript segments (words[] → text).
+    const rawSegments = Array.isArray(data.transcript) ? data.transcript : [];
+    const rows = rawSegments
+      .map((s) => ({
+        meeting_id: meetingId,
+        speaker: s.speaker ?? null,
+        speaker_id: null,
+        text: segmentText(s),
+        start_time: segmentStart(s),
+        end_time: s.end_time ?? null,
+      }))
+      .filter((r) => r.text.trim().length > 0);
+    if (rows.length > 0) {
       await admin.from("transcript_segments").insert(rows);
     }
 
@@ -85,37 +128,47 @@ export async function POST(req: Request) {
       const { data: segments } = await admin
         .from("transcript_segments")
         .select("speaker,text,start_time")
-        .eq("meeting_id", meeting.id)
+        .eq("meeting_id", meetingId)
         .order("start_time", { ascending: true });
 
-      if (segments && segments.length > 0 && process.env.OPENAI_API_KEY) {
-        const transcript = normalizeTranscript(segments);
-        const result = await summarizeTranscript(transcript);
-        const insights = [
-          { meeting_id: meeting.id, type: "summary" as const, content: result.summary },
-          ...result.topics.map((t) => ({
-            meeting_id: meeting.id,
-            type: "key_topic" as const,
-            content: t,
-          })),
-          ...result.decisions.map((d) => ({
-            meeting_id: meeting.id,
-            type: "decision" as const,
-            content: d,
-          })),
-          ...result.action_items.map((a) => ({
-            meeting_id: meeting.id,
-            type: "action_item" as const,
-            content: a.description,
-            metadata: { assignee: a.assignee ?? null, due_date: a.due_date ?? null },
-          })),
-        ];
-        await admin.from("meeting_insights").insert(insights);
+      if (!segments || segments.length === 0) {
         await admin
           .from("meetings")
-          .update({ status: "completed", summary_status: "done" })
-          .eq("id", meeting.id);
+          .update({ status: "completed", summary_status: "no_transcript" })
+          .eq("id", meetingId);
+        return NextResponse.json({ ok: true });
       }
+
+      if (!process.env.OPENAI_API_KEY) {
+        return NextResponse.json({ ok: true, ai: "skipped" });
+      }
+
+      const transcript = normalizeTranscript(segments);
+      const result = await summarizeTranscript(transcript);
+      const insights = [
+        { meeting_id: meetingId, type: "summary" as const, content: result.summary },
+        ...result.topics.map((t) => ({
+          meeting_id: meetingId,
+          type: "key_topic" as const,
+          content: t,
+        })),
+        ...result.decisions.map((d) => ({
+          meeting_id: meetingId,
+          type: "decision" as const,
+          content: d,
+        })),
+        ...result.action_items.map((a) => ({
+          meeting_id: meetingId,
+          type: "action_item" as const,
+          content: a.description,
+          metadata: { assignee: a.assignee ?? null, due_date: a.due_date ?? null },
+        })),
+      ];
+      await admin.from("meeting_insights").insert(insights);
+      await admin
+        .from("meetings")
+        .update({ status: "completed", summary_status: "done" })
+        .eq("id", meetingId);
     } catch (e) {
       console.error("AI processing failed:", e);
     }
@@ -123,6 +176,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
-  // Unknown event — ack to avoid retries storms.
+  // Unknown event — ack to avoid retry storms.
   return NextResponse.json({ ok: true, ignored: event });
 }
