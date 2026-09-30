@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserId } from "@/lib/supabase/server";
 
 async function ownedMeeting(meetingId: string) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { supabase, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
+  const userId = await getUserId(supabase);
+  if (!userId) return { supabase, error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
 
   const { data: meeting, error } = await supabase
     .from("meetings")

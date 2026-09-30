@@ -1,6 +1,7 @@
 import { type NextRequest } from "next/server";
-import { updateSession } from "@/lib/supabase/middleware";
+import { updateSession } from "@/lib/supabase/proxy";
 
+// Next 16 entry point (renamed from middleware.ts).
 export async function proxy(request: NextRequest) {
   return await updateSession(request);
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getUserId } from "@/lib/supabase/server";
 import { isValidMeetingUrl } from "@/lib/utils/meetings";
 import {
   isMeetingBaasConfigured,
@@ -25,10 +25,8 @@ export async function POST(req: Request) {
     );
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const userId = await getUserId(supabase);
+  if (!userId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await req.json().catch(() => null);
   const parsed = CreateMeetingSchema.safeParse(body);
@@ -47,7 +45,7 @@ export async function POST(req: Request) {
   const { data: meeting, error } = await supabase
     .from("meetings")
     .insert({
-      user_id: user.id,
+      user_id: userId,
       title: title ?? null,
       meeting_url: meetingUrl,
       status: "scheduled",
@@ -94,10 +92,9 @@ export async function POST(req: Request) {
 // GET /api/meetings — list own meetings
 export async function GET() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!(await getUserId(supabase))) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const { data, error } = await supabase
     .from("meetings")

@@ -1,37 +1,47 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { supabasePublishableKey, supabaseUrl } from "./env";
 
 export async function createClient() {
   const cookieStore = await cookies();
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
-  if (!url || !anonKey) {
-    throw new Error(
-      "Missing Supabase env vars: NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY"
-    );
-  }
-
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return createServerClient<any>(url, anonKey, {
+  return createServerClient<any>(supabaseUrl(), supabasePublishableKey(), {
     cookies: {
       getAll() {
         return cookieStore.getAll();
       },
-      setAll(cookiesToSet: Array<{ name: string; value: string; options?: Record<string, unknown> }>) {
+      setAll(
+        cookiesToSet: Array<{
+          name: string;
+          value: string;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          options?: any;
+        }>
+      ) {
         try {
           cookiesToSet.forEach(({ name, value, options }) =>
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            cookieStore.set(name, value, options as any)
+            cookieStore.set(name, value, options)
           );
         } catch {
           // Called from a Server Component — cookies are read-only there.
-          // Middleware refreshes the session instead.
+          // The proxy refreshes the session instead.
         }
       },
     },
   });
+}
+
+// Standard auth check for server code: verifies the JWT signature
+// (locally for asymmetric keys, via Auth server otherwise).
+// Never use getSession() here — it trusts the cookie without verifying.
+export async function getUserId(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any
+): Promise<string | null> {
+  const { data, error } = await supabase.auth.getClaims();
+  if (error || !data?.claims) return null;
+  return (data.claims.sub as string | undefined) ?? null;
 }
 
 export async function getSessionUser() {
