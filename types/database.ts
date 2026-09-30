@@ -1,6 +1,7 @@
 export type MeetingStatus =
   | "scheduled"
   | "joining"
+  | "in_meeting"
   | "in_progress"
   | "processing"
   | "completed"

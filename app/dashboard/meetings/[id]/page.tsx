@@ -1,22 +1,23 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  CalendarDays,
   Check,
   CheckCircle2,
   Circle,
+  CircleAlert,
   ListChecks,
   LoaderCircle,
+  Radio,
   Sparkles,
   Tags,
+  FileText,
+  ArrowRight,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { BackButton } from "@/components/ui/back-button";
 import { LiveRefresher } from "@/components/meetings/live-refresher";
-import { StatusBadge } from "@/components/ui/badge";
+import { WorkspaceHeader } from "@/components/meetings/workspace-header";
 import { createClient } from "@/lib/supabase/server";
-import { formatDuration, formatTimestamp } from "@/lib/utils/meetings";
-import { formatMeetingDate } from "@/lib/utils/format";
+import { formatTimestamp } from "@/lib/utils/meetings";
 import { cn } from "@/lib/utils";
 
 function groupInsights(insights: Array<{ type: string; content: string }>) {
@@ -28,19 +29,21 @@ function groupInsights(insights: Array<{ type: string; content: string }>) {
   };
 }
 
-const STEPS = ["Connecting", "Recording", "Processing", "Complete"] as const;
+const STEPS = ["Connecting", "Joined", "Recording", "Processing", "Complete"] as const;
 
 function stepIndex(status: string): number {
   switch (status) {
     case "scheduled":
     case "joining":
       return 0;
-    case "in_progress":
+    case "in_meeting":
       return 1;
-    case "processing":
+    case "in_progress":
       return 2;
-    case "completed":
+    case "processing":
       return 3;
+    case "completed":
+      return 4;
     default:
       return 0;
   }
@@ -80,16 +83,18 @@ export default async function MeetingDetailPage({
     title: string | null;
     status: string;
     duration_seconds: number | null;
+    transcript_status: string | null;
     created_at: string;
   } | null = null;
   let insights: Array<{ type: string; content: string }> = [];
   let segments: Array<{ id: string; speaker: string | null; text: string; start_time: number | null }> = [];
+  let transcriptCount = 0;
 
   try {
     const supabase = await createClient();
     const { data: m } = await supabase
       .from("meetings")
-      .select("id,title,status,duration_seconds,created_at")
+      .select("id,title,status,duration_seconds,transcript_status,created_at")
       .eq("id", id)
       .single();
     if (!m) notFound();
@@ -98,9 +103,10 @@ export default async function MeetingDetailPage({
       title: (m.title as string | null) ?? null,
       status: String(m.status),
       duration_seconds: (m.duration_seconds as number | null) ?? null,
+      transcript_status: (m.transcript_status as string | null) ?? null,
       created_at: String(m.created_at),
     };
-    const [{ data: ins }, { data: seg }] = await Promise.all([
+    const [{ data: ins }, { data: seg }, { count }] = await Promise.all([
       supabase.from("meeting_insights").select("type,content").eq("meeting_id", id),
       supabase
         .from("transcript_segments")
@@ -108,9 +114,14 @@ export default async function MeetingDetailPage({
         .eq("meeting_id", id)
         .order("start_time", { ascending: true })
         .limit(200),
+      supabase
+        .from("transcript_segments")
+        .select("id", { count: "exact", head: true })
+        .eq("meeting_id", id),
     ]);
     insights = (ins ?? []) as typeof insights;
     segments = (seg ?? []) as typeof segments;
+    transcriptCount = count ?? segments.length;
   } catch {
     notFound();
   }
@@ -122,53 +133,64 @@ export default async function MeetingDetailPage({
 
   return (
     <div className="mx-auto w-full max-w-[900px]">
-      <LiveRefresher meetingId={id} active={!done} />
-      <BackButton fallbackHref="/dashboard/meetings" />
+      <LiveRefresher meetingId={id} active={!done && meeting.status !== "failed"} />
+      <WorkspaceHeader
+        meetingId={id}
+        title={meeting.title ?? "Untitled meeting"}
+        status={meeting.status}
+        createdAt={meeting.created_at}
+        durationSeconds={meeting.duration_seconds}
+        activeTab="overview"
+        transcriptCount={transcriptCount}
+      />
 
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-balance text-[27px] font-extrabold leading-tight tracking-[-0.035em] text-ink sm:text-[32px]">
-            {meeting.title ?? "Untitled meeting"}
-          </h1>
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm text-muted">
-            <span className="inline-flex items-center gap-1.5">
-              <CalendarDays size={14} aria-hidden="true" />
-              {formatMeetingDate(meeting.created_at)}
+      {meeting.status === "failed" ? (
+        <Card className="mt-5 flex flex-col items-start gap-4 border-red-200 bg-red-50/60 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-7">
+          <div className="flex items-start gap-3">
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-red-100 text-red-700">
+              <CircleAlert size={19} />
             </span>
-            <span aria-hidden="true">·</span>
-            <span className="tabular-nums">{formatDuration(meeting.duration_seconds)}</span>
-          </p>
-        </div>
-        <StatusBadge status={meeting.status} />
-      </div>
-
-      <nav aria-label="Meeting sections" className="mt-6 flex gap-1 rounded-2xl border border-border bg-card p-1 text-sm font-semibold shadow-sm sm:max-w-md">
-        <span aria-current="page" className="flex-1 rounded-xl bg-ink px-4 py-2.5 text-center text-white">
-          Overview
-        </span>
-        <Link
-          href={`/dashboard/meetings/${id}/transcript`}
-          className="flex-1 rounded-xl px-4 py-2.5 text-center text-stone-500 transition-[background-color,color] hover:bg-ink/[0.05] hover:text-ink"
-        >
-          Transcript
-        </Link>
-        <Link
-          href={`/dashboard/meetings/${id}/ask`}
-          className="flex-1 rounded-xl px-4 py-2.5 text-center text-stone-500 transition-[background-color,color] hover:bg-ink/[0.05] hover:text-ink"
-        >
-          Ask AI
-        </Link>
-      </nav>
-
-      {!done ? (
+            <div>
+              <h2 className="font-extrabold text-ink">The bot couldn’t complete this meeting</h2>
+              <p className="mt-1 max-w-xl text-sm leading-relaxed text-stone-600">
+                It may have been blocked from joining or removed from the call. Check the Meet link and try again.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/dashboard/meetings/new"
+            className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-bold text-white transition-[background-color,transform] hover:bg-primary-dark active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            Start another meeting <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+        </Card>
+      ) : !done ? (
         <Card className="mt-4 p-6 sm:p-7">
           <p className="flex items-center gap-2.5 font-bold text-ink">
-            {meeting.status === "processing" ? (
-              "Processing your meeting…"
+            {meeting.status === "scheduled" ? (
+              <>
+                <LoaderCircle size={18} aria-hidden="true" className="motion-safe:animate-spin text-primary" />
+                Your meeting is queued to start…
+              </>
+            ) : meeting.status === "processing" ? (
+              <>
+                <LoaderCircle size={18} aria-hidden="true" className="motion-safe:animate-spin text-primary" />
+                Preparing your notes…
+              </>
+            ) : meeting.status === "in_meeting" ? (
+              <>
+                <CheckCircle2 size={18} aria-hidden="true" className="text-sky-700" />
+                The bot has joined and is getting ready to record.
+              </>
+            ) : meeting.status === "in_progress" ? (
+              <>
+                <Radio size={18} aria-hidden="true" className="text-primary" />
+                Recording your meeting.
+              </>
             ) : (
               <>
-                <LoaderCircle size={18} aria-hidden="true" className="animate-spin text-primary" />
-                The bot is joining…
+                <LoaderCircle size={18} aria-hidden="true" className="motion-safe:animate-spin text-primary" />
+                The bot is joining your meeting…
               </>
             )}
           </p>
@@ -183,29 +205,82 @@ export default async function MeetingDetailPage({
                     className={cn(
                       "flex h-7 w-7 items-center justify-center rounded-full",
                       reached && "bg-green-100 text-green-700",
-                      current && "bg-primary/10 text-primary",
+                      current && (meeting.status === "in_meeting" ? "bg-sky-100 text-sky-700" : "bg-primary/10 text-primary"),
                       !reached && !current && "bg-ink/[0.06] text-stone-400"
                     )}
                   >
                     {reached ? (
                       <Check size={15} strokeWidth={3} />
-                    ) : current ? (
-                      <LoaderCircle size={15} strokeWidth={2.5} className="animate-spin" />
+                    ) : current && (meeting.status === "scheduled" || meeting.status === "joining" || meeting.status === "processing") ? (
+                      <LoaderCircle size={15} strokeWidth={2.5} className="motion-safe:animate-spin" />
+                    ) : current && meeting.status === "in_progress" ? (
+                      <Radio size={15} strokeWidth={2.5} />
                     ) : (
                       <Circle size={13} />
                     )}
                   </span>
-                  <span className={reached || current ? "text-ink" : "text-stone-400"}>{s}</span>
+                  <span className={reached || current ? "text-ink" : "text-stone-400"}>
+                    {i === 1 && meeting.status === "in_meeting" ? "In meeting" : s}
+                  </span>
                 </li>
               );
             })}
           </ol>
-          <p className="mt-5 text-[13px] text-muted">
-            Status updates automatically when the bot reports back. Refresh the page to check.
+          <p aria-live="polite" className="mt-5 text-[13px] text-muted">
+            We’ll update this page as the meeting progresses.
           </p>
         </Card>
       ) : (
         <div className="mt-4 space-y-4">
+          {meeting.transcript_status === "unavailable" && segments.length === 0 && (
+            <Card className="flex items-start gap-3 border-amber-200 bg-amber-50/70 p-5 sm:p-6">
+              <span aria-hidden="true" className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800">
+                <FileText size={18} />
+              </span>
+              <div>
+                <h2 className="font-bold text-ink">Meeting complete, transcript unavailable</h2>
+                <p className="mt-1 text-sm leading-relaxed text-stone-600">
+                  The bot left the meeting, but the recording service did not return a transcript. New meetings will request transcription automatically.
+                </p>
+              </div>
+            </Card>
+          )}
+          {meeting.transcript_status !== "unavailable" &&
+            !grouped.summary && grouped.topics.length === 0 && grouped.decisions.length === 0 &&
+            grouped.actions.length === 0 && segments.length === 0 && (
+              <Card className="p-6 sm:p-7">
+                <h2 className="font-extrabold text-ink">Your meeting is complete</h2>
+                <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted">
+                  No transcript or notes were saved for this call. Start another meeting to capture the conversation and its action items.
+                </p>
+              </Card>
+            )}
+          {segments.length > 0 &&
+            !grouped.summary && grouped.topics.length === 0 && grouped.decisions.length === 0 &&
+            grouped.actions.length === 0 && (
+              <Card className="flex flex-col items-start justify-between gap-4 bg-background/60 p-5 sm:flex-row sm:items-center sm:p-6">
+                <div>
+                  <h2 className="font-extrabold text-ink">Your transcript is ready</h2>
+                  <p className="mt-1 text-sm leading-relaxed text-muted">
+                    Meeting notes aren’t available for this call yet. You can read the conversation or ask a question about it.
+                  </p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Link
+                    href={`/dashboard/meetings/${id}/transcript`}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-bold text-ink transition-[background-color,border-color] hover:border-primary/40 hover:bg-primary/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  >
+                    Read transcript
+                  </Link>
+                  <Link
+                    href={`/dashboard/meetings/${id}/ask`}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-full bg-ink px-4 py-2 text-sm font-bold text-white transition-[background-color] hover:bg-ink/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+                  >
+                    Ask AI
+                  </Link>
+                </div>
+              </Card>
+            )}
           {grouped.summary && (
             <Section icon={Sparkles} title="Summary">
               <p className="text-pretty text-[15px] leading-relaxed text-stone-600">{grouped.summary}</p>

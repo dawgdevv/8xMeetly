@@ -4,9 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-// Keeps the meeting page live: Supabase Realtime pushes refresh on any
-// meeting/transcript/insight change, with a 15s poll fallback in case
-// Realtime is disabled on the project.
+// Keeps the meeting page live with Supabase Realtime and provider reconciliation.
 export function LiveRefresher({
   meetingId,
   active,
@@ -60,7 +58,22 @@ export function LiveRefresher({
       // Skeleton mode — polling below still works against nothing.
     }
 
-    const timer = setInterval(() => router.refresh(), 15000);
+    const syncStatus = async () => {
+      try {
+        const response = await fetch(`/api/meetings/${meetingId}/sync-status`, {
+          method: "POST",
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const result = (await response.json()) as { changed?: boolean };
+        if (result.changed) router.refresh();
+      } catch {
+        // Realtime remains available if provider reconciliation is unreachable.
+      }
+    };
+
+    void syncStatus();
+    const timer = setInterval(syncStatus, 15000);
     return () => {
       clearInterval(timer);
       if (channel) channel.unsubscribe();

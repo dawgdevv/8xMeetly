@@ -13,6 +13,7 @@ import {
 const STATUS_META: Record<string, { label: string; icon: LucideIcon; classes: string }> = {
   scheduled: { label: "Scheduled", icon: Clock, classes: "bg-stone-100 text-stone-600" },
   joining: { label: "Joining", icon: LoaderCircle, classes: "bg-amber-100 text-amber-800" },
+  in_meeting: { label: "In meeting", icon: Radio, classes: "bg-sky-100 text-sky-800" },
   in_progress: { label: "Recording", icon: Radio, classes: "bg-red-100 text-red-700" },
   processing: { label: "Processing", icon: Cpu, classes: "bg-sky-100 text-sky-800" },
   completed: { label: "Completed", icon: CheckCircle2, classes: "bg-green-100 text-green-800" },
@@ -26,6 +27,8 @@ export function statusTone(status: string): "default" | "green" | "amber" | "red
     case "failed":
       return "red";
     case "in_progress":
+      return "blue";
+    case "in_meeting":
       return "blue";
     case "joining":
     case "processing":
@@ -79,7 +82,7 @@ export function StatusBadge({ status }: { status: string }) {
         size={13}
         strokeWidth={2.5}
         aria-hidden="true"
-        className={status === "joining" ? "animate-spin" : undefined}
+        className={status === "joining" ? "motion-safe:animate-spin" : undefined}
       />
       {meta.label}
     </span>

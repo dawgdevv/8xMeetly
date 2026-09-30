@@ -1,100 +1,110 @@
-"use client";
-
-import { useState } from "react";
-import { useParams } from "next/navigation";
-import { LoaderCircle, Send, Sparkles } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { BackButton } from "@/components/ui/back-button";
-import { Textarea } from "@/components/ui/textarea";
+import { notFound } from "next/navigation";
+import { ArrowRight, CircleAlert, MessageCircleQuestion } from "lucide-react";
+import Link from "next/link";
 import { Card } from "@/components/ui/card";
-import { Field, FormStatus } from "@/components/ui/field";
+import { LiveRefresher } from "@/components/meetings/live-refresher";
+import { WorkspaceHeader } from "@/components/meetings/workspace-header";
+import { AskPanel } from "@/components/meetings/ask-panel";
+import { createClient } from "@/lib/supabase/server";
 
-export default function AskPage() {
-  const params = useParams<{ id: string }>();
-  const meetingId = params.id;
-  const [question, setQuestion] = useState("");
-  const [answer, setAnswer] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+export default async function AskPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const supabase = await createClient();
+  const [{ data: meeting }, { count: transcriptCount }] = await Promise.all([
+    supabase
+      .from("meetings")
+      .select("title,status,duration_seconds,transcript_status,created_at")
+      .eq("id", id)
+      .single(),
+    supabase
+      .from("transcript_segments")
+      .select("id", { count: "exact", head: true })
+      .eq("meeting_id", id),
+  ]);
+  if (!meeting) notFound();
 
-  async function ask(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setAnswer(null);
-    if (!question.trim()) return;
-    setLoading(true);
-    try {
-      const res = await fetch("/api/ai/ask", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ meetingId, question }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.error ?? "Ask failed.");
-      setAnswer(json.answer);
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? `${err.message} Try asking again.`
-          : "Could not answer. Try asking again."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
+  const status = String(meeting.status);
+  const hasTranscript = (transcriptCount ?? 0) > 0;
+  const terminal = status === "completed" || status === "failed";
 
   return (
-    <div className="mx-auto w-full max-w-[760px]">
-      <BackButton fallbackHref={`/dashboard/meetings/${meetingId}`} />
-      <h1 className="mt-4 text-balance text-[27px] font-extrabold leading-tight tracking-[-0.035em] text-ink sm:text-[32px]">
-        Ask AI
-      </h1>
-      <p className="mb-6 mt-2 text-pretty text-sm leading-6 text-muted sm:text-[15px]">
-        Ask anything about this meeting. Answers come straight from the transcript.
-      </p>
-      <Card className="p-5 sm:p-7">
-        <form onSubmit={ask} className="space-y-4">
-          <Field label="Your Question" htmlFor="ask-question">
-            <Textarea
-              id="ask-question"
-              name="question"
-              rows={3}
-              autoComplete="off"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              placeholder="What did the team decide about the launch…"
-            />
-          </Field>
-          <FormStatus error={error} />
-          <Button type="submit" size="pill" disabled={loading || !question.trim()}>
-            {loading ? (
-              <>
-                <LoaderCircle size={17} aria-hidden="true" className="animate-spin" />
-                Thinking…
-              </>
-            ) : (
-              <>
-                Ask
-                <Send size={16} strokeWidth={2.25} aria-hidden="true" />
-              </>
-            )}
-          </Button>
-        </form>
-        {answer && (
-          <div
-            aria-live="polite"
-            className="mt-6 rounded-2xl bg-background p-5 ring-1 ring-border"
+    <div className="mx-auto w-full max-w-[900px]">
+      <LiveRefresher meetingId={id} active={!terminal} />
+      <WorkspaceHeader
+        meetingId={id}
+        title={(meeting.title as string | null) ?? "Untitled meeting"}
+        status={status}
+        createdAt={String(meeting.created_at)}
+        durationSeconds={(meeting.duration_seconds as number | null) ?? null}
+        activeTab="ask"
+        transcriptCount={transcriptCount ?? 0}
+      />
+
+      <div className="mb-4 mt-6">
+        <p className="text-xs font-extrabold uppercase tracking-[0.14em] text-primary">Meeting assistant</p>
+        <h2 className="mt-1 text-xl font-extrabold tracking-tight text-ink">Ask about this conversation</h2>
+        <p className="mt-1 text-sm leading-relaxed text-muted">
+          Get a grounded answer from what was actually said in the meeting.
+        </p>
+      </div>
+
+      {hasTranscript ? (
+        <AskPanel meetingId={id} />
+      ) : status === "failed" ? (
+        <Card className="flex min-h-[280px] flex-col items-center justify-center px-6 py-10 text-center">
+          <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-2xl bg-red-50 text-red-700">
+            <CircleAlert size={24} />
+          </span>
+          <h3 className="mt-4 text-lg font-extrabold text-ink">There’s no transcript to ask about</h3>
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">
+            The bot couldn’t complete this meeting. Check the Meet link and start another meeting to capture its conversation.
+          </p>
+          <Link
+            href="/dashboard/meetings/new"
+            className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-bold text-white transition-[background-color,transform] hover:bg-primary-dark active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
-            <p className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-primary">
-              <Sparkles size={13} aria-hidden="true" />
-              Answer
-            </p>
-            <p className="mt-2 whitespace-pre-wrap text-pretty text-[15px] leading-relaxed text-stone-700">
-              {answer}
-            </p>
-          </div>
-        )}
-      </Card>
+            Start another meeting <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+        </Card>
+      ) : status === "completed" ? (
+        <Card className="flex min-h-[280px] flex-col items-center justify-center px-6 py-10 text-center">
+          <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-50 text-amber-700">
+            <MessageCircleQuestion size={24} />
+          </span>
+          <h3 className="mt-4 text-lg font-extrabold text-ink">This meeting has no transcript</h3>
+          <p className="mt-2 max-w-md text-sm leading-relaxed text-muted">
+            {meeting.transcript_status === "unavailable"
+              ? "The recording service didn’t return a transcript, so the assistant has no meeting content to reference."
+              : "The transcript wasn’t saved, so the assistant has no meeting content to reference."}
+          </p>
+          <Link
+            href={`/dashboard/meetings/${id}/transcript`}
+            className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-full border border-border bg-card px-4 py-2 text-sm font-bold text-ink transition-[background-color,border-color] hover:border-primary/40 hover:bg-primary/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            View transcript status <ArrowRight size={15} aria-hidden="true" />
+          </Link>
+        </Card>
+      ) : (
+        <Card className="flex min-h-[280px] flex-col items-center justify-center px-6 py-10 text-center">
+          <span aria-hidden="true" className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/[0.09] text-primary">
+            <MessageCircleQuestion size={24} />
+          </span>
+          <h3 className="mt-4 text-lg font-extrabold text-ink">
+            {status === "joining" || status === "scheduled"
+              ? "The assistant is waiting for the meeting"
+              : status === "in_meeting" || status === "in_progress"
+                ? "The assistant is listening"
+                : "The transcript is being prepared"}
+          </h3>
+          <p aria-live="polite" className="mt-2 max-w-md text-sm leading-relaxed text-muted">
+            Ask AI will be ready as soon as the transcript is available. This page updates automatically.
+          </p>
+        </Card>
+      )}
     </div>
   );
 }

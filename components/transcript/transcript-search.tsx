@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { FileText, Search } from "lucide-react";
 import { formatTimestamp } from "@/lib/utils/meetings";
+import { Button } from "@/components/ui/button";
+
+const PAGE_SIZE = 50;
 
 export function TranscriptSearch({
   segments,
@@ -10,6 +13,7 @@ export function TranscriptSearch({
   segments: Array<{ id: string; speaker: string | null; text: string; start_time: number | null }>;
 }) {
   const [q, setQ] = useState("");
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
   const query = q.trim().toLowerCase();
   const filtered = query
     ? segments.filter(
@@ -51,12 +55,16 @@ export function TranscriptSearch({
         />
         <input
           id="transcript-search"
+          name="transcript-search"
           type="search"
           autoComplete="off"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => {
+            setQ(e.target.value);
+            setVisibleCount(PAGE_SIZE);
+          }}
           placeholder="Search what was said…"
-          className="h-12 w-full rounded-xl border border-border bg-card pl-11 pr-4 text-sm text-foreground shadow-sm placeholder:text-stone-400 transition-[border-color,box-shadow] focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+          className="h-12 w-full rounded-xl border border-border bg-card pl-11 pr-4 text-sm text-foreground shadow-sm placeholder:text-stone-400 transition-[border-color,box-shadow] focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20"
         />
       </div>
       <p aria-live="polite" className="mt-3 text-[13px] font-medium tabular-nums text-muted">
@@ -65,7 +73,7 @@ export function TranscriptSearch({
           : `${segments.length} segments`}
       </p>
       <div className="mt-3 space-y-5 rounded-[20px] border border-border bg-card p-5 shadow-[0_1px_2px_rgb(41_39_33/0.04),0_12px_32px_-25px_rgb(41_39_33/0.34)] sm:p-7">
-        {filtered.map((s) => (
+        {filtered.slice(0, visibleCount).map((s) => (
           <div key={s.id} className="min-w-0">
             <p className="text-xs font-bold tabular-nums text-primary">
               {formatTimestamp(s.start_time)} ·{" "}
@@ -80,6 +88,17 @@ export function TranscriptSearch({
           </p>
         )}
       </div>
+      {filtered.length > visibleCount && (
+        <div className="mt-4 flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setVisibleCount((count) => count + PAGE_SIZE)}
+          >
+            Show next {Math.min(PAGE_SIZE, filtered.length - visibleCount)} segments
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

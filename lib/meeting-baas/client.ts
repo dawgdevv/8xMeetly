@@ -1,6 +1,6 @@
 // Meeting BaaS integration layer — API v2.
 // Verified against https://docs.meetingbaas.com (v2 reference):
-// - Join: POST https://api.meetingbaas.com/v2/bots {bot_name, meeting_url}
+// - Join: POST https://api.meetingbaas.com/v2/bots {bot_name, meeting_url, transcription_enabled}
 //         → {data: {bot_id}, success: true}, auth via `x-meeting-baas-api-key`
 // - Completion: v2 webhooks `bot.status_change` / `bot.completed` / `bot.failed`
 //   (account-level, SVIX-signed). bot.completed carries ARTIFACT URLS —
@@ -16,6 +16,15 @@ export interface JoinMeetingParams {
 
 export interface JoinMeetingResult {
   botId: string;
+}
+
+export interface BaasBotSnapshot {
+  bot_id: string;
+  status: string;
+  joined_at?: string | null;
+  exited_at?: string | null;
+  duration_seconds?: number | null;
+  transcription?: unknown;
 }
 
 export type BaasEventType =
@@ -89,6 +98,35 @@ export function isMeetingBaasConfigured(): boolean {
   return Boolean(process.env.MEETING_BAAS_API_KEY);
 }
 
+/** Read the authoritative lifecycle state as a fallback for missed webhooks. */
+export async function fetchBaasBotSnapshot(botId: string): Promise<BaasBotSnapshot> {
+  const { apiKey, baseUrl } = config();
+  if (!apiKey) {
+    throw new Error("Meeting BaaS is not configured (MEETING_BAAS_API_KEY).");
+  }
+
+  const res = await fetch(`${baseUrl}/v2/bots/${encodeURIComponent(botId)}`, {
+    headers: { "x-meeting-baas-api-key": apiKey },
+    cache: "no-store",
+    signal: AbortSignal.timeout(10000),
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Meeting BaaS status lookup failed (${res.status}): ${text}`);
+  }
+
+  const json = (await res.json()) as {
+    data?: BaasBotSnapshot;
+    bot_id?: string;
+    status?: string;
+  };
+  const bot = json.data ?? json;
+  if (typeof bot.bot_id !== "string" || typeof bot.status !== "string") {
+    throw new Error("Meeting BaaS status response is missing bot_id or status.");
+  }
+  return bot as BaasBotSnapshot;
+}
+
 /** Send a "join meeting" request to Meeting BaaS (v2). Throws when unconfigured. */
 export async function joinMeetingViaBaas(
   params: JoinMeetingParams
@@ -107,6 +145,7 @@ export async function joinMeetingViaBaas(
     body: JSON.stringify({
       bot_name: params.botName ?? "8xMeetly Notetaker",
       meeting_url: params.meetingUrl,
+      transcription_enabled: true,
     }),
   });
 

@@ -12,7 +12,7 @@ import {
 } from "@/lib/meeting-baas/client";
 import { normalizeTranscript } from "@/lib/utils/meetings";
 import { summarizeTranscript } from "@/lib/ai/summarize";
-import type { MeetingStatus } from "@/types/database";
+import { statusFromBaasCode } from "@/lib/meeting-baas/status";
 
 // POST /api/webhooks/meeting-baas
 // Meeting BaaS v2 contract (docs.meetingbaas.com):
@@ -21,43 +21,6 @@ import type { MeetingStatus } from "@/types/database";
 //   `bot.failed`        → terminal failure
 // v1 `complete`/`failed`/`transcription_complete` kept as fallback.
 // Always answer fast; SVIX retries failed deliveries.
-
-/** Map v2 lifecycle codes to our meeting statuses. */
-function statusForCode(code: string): MeetingStatus | null {
-  switch (code) {
-    case "queued":
-    case "pickup_delayed":
-    case "joining_call":
-    case "in_waiting_room":
-    case "in_waiting_for_host":
-    case "in_call_not_recording":
-      return "joining";
-    case "in_call_recording":
-    case "recording_paused":
-    case "recording_resumed":
-      return "in_progress";
-    case "call_ended":
-    case "recording_succeeded":
-    case "transcribing":
-      return "processing";
-    case "recording_failed":
-    case "meeting_error":
-    case "api_request_stop":
-    case "bot_rejected":
-    case "bot_removed":
-    case "bot_removed_too_early":
-    case "waiting_room_timeout":
-    case "invalid_meeting_url":
-    case "failed":
-      return "failed";
-    case "completed":
-      // Terminal "all done" — bot.completed does the real work; make sure
-      // we are at least out of recording states.
-      return "processing";
-    default:
-      return null;
-  }
-}
 
 async function runAiPipeline(
   admin: ReturnType<typeof createAdminClient>,
@@ -156,7 +119,10 @@ export async function POST(req: Request) {
     .eq("bot_id", botId)
     .single();
 
-  if (!meeting) return NextResponse.json({ error: "Unknown bot" }, { status: 404 });
+  if (!meeting) {
+    console.warn("Meeting BaaS webhook references an unknown bot", { botId, event: payload.event });
+    return NextResponse.json({ error: "Unknown bot" }, { status: 404 });
+  }
 
   const event = payload.event;
   const data = payload.data ?? {};
@@ -167,8 +133,11 @@ export async function POST(req: Request) {
   if (event === "bot.status_change") {
     const code = data.status?.code;
     if (!code) return NextResponse.json({ ok: true, ignored: "no-code" });
-    const mapped = statusForCode(code);
-    if (!mapped) return NextResponse.json({ ok: true, ignored: code });
+    const mapped = statusFromBaasCode(code);
+    if (!mapped) {
+      console.warn("Unhandled Meeting BaaS bot status", { botId, code });
+      return NextResponse.json({ ok: true, ignored: code });
+    }
     if (code === "completed" && currentStatus === "completed") {
       return NextResponse.json({ ok: true });
     }
@@ -179,14 +148,39 @@ export async function POST(req: Request) {
     if (data.status?.error_message) {
       console.error(`Bot ${code}:`, data.status.error_message);
     }
-    await admin.from("meetings").update(update).eq("id", meetingId);
+    const { error: updateError } = await admin
+      .from("meetings")
+      .update(update)
+      .eq("id", meetingId);
+    if (updateError) {
+      console.error("Could not persist Meeting BaaS bot status", {
+        botId,
+        code,
+        status: mapped,
+        error: updateError.message,
+      });
+      return NextResponse.json({ error: "Could not persist bot status" }, { status: 500 });
+    }
+    console.info("Updated meeting status from Meeting BaaS webhook", {
+      botId,
+      code,
+      from: currentStatus,
+      to: mapped,
+    });
     return NextResponse.json({ ok: true, status: mapped });
   }
 
   // --- v2: terminal failure ---
   if (event === "bot.failed" || event === "failed") {
     console.error("Meeting BaaS bot failed:", data.error ?? data.message ?? data);
-    await admin.from("meetings").update({ status: "failed" }).eq("id", meetingId);
+    const { error } = await admin
+      .from("meetings")
+      .update({ status: "failed" })
+      .eq("id", meetingId);
+    if (error) {
+      console.error("Could not persist failed Meeting BaaS bot", { botId, error: error.message });
+      return NextResponse.json({ error: "Could not persist bot failure" }, { status: 500 });
+    }
     return NextResponse.json({ ok: true });
   }
 
@@ -202,7 +196,7 @@ export async function POST(req: Request) {
   // --- v2: completion with artifact URLs ---
   if (event === "bot.completed") {
     // NOTE: artifact URLs are presigned for 4h — download for permanence (V2).
-    await admin
+    const { error: completionError } = await admin
       .from("meetings")
       .update({
         status: "processing",
@@ -213,6 +207,13 @@ export async function POST(req: Request) {
         transcript_status: "received",
       })
       .eq("id", meetingId);
+    if (completionError) {
+      console.error("Could not persist completed Meeting BaaS bot", {
+        botId,
+        error: completionError.message,
+      });
+      return NextResponse.json({ error: "Could not persist bot completion" }, { status: 500 });
+    }
 
     if (typeof data.transcription === "string" && data.transcription.length > 0) {
       try {
