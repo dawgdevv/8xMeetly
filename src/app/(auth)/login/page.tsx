@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LoaderCircle } from "lucide-react";
@@ -9,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Field, FormStatus } from "@/components/ui/field";
+import { GoogleButton } from "@/components/auth/google-button";
+import { OAuthNotice } from "@/components/auth/oauth-notice";
 import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -51,7 +54,20 @@ export default function LoginPage() {
         <p className="mt-1.5 text-center text-sm text-muted">
           Log in to your 8xMeetly workspace
         </p>
-        <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate={false}>
+        <Suspense>
+          <OAuthNotice />
+        </Suspense>
+        <div className="mt-6">
+          <GoogleButton label="Continue with Google" />
+        </div>
+        <div aria-hidden="true" className="my-5 flex items-center gap-3">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+            or with email
+          </span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+        <form className="space-y-4" onSubmit={onSubmit} noValidate={false}>
           <Field label="Email" htmlFor="login-email">
             <Input
               id="login-email"

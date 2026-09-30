@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Field, FormStatus } from "@/components/ui/field";
+import { GoogleButton } from "@/components/auth/google-button";
 import { createClient } from "@/lib/supabase/client";
 
 export default function RegisterPage() {
@@ -56,7 +57,17 @@ export default function RegisterPage() {
         <p className="mt-1.5 text-center text-sm text-muted">
           Start capturing meetings in under a minute
         </p>
-        <form className="mt-6 space-y-4" onSubmit={onSubmit}>
+        <div className="mt-6">
+          <GoogleButton label="Sign up with Google" />
+        </div>
+        <div aria-hidden="true" className="my-5 flex items-center gap-3">
+          <span className="h-px flex-1 bg-border" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
+            or with email
+          </span>
+          <span className="h-px flex-1 bg-border" />
+        </div>
+        <form className="space-y-4" onSubmit={onSubmit}>
           <Field label="Name" htmlFor="register-name">
             <Input
               id="register-name"
