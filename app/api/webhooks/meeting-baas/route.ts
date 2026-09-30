@@ -1,49 +1,131 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { Webhook } from "svix";
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   extractBotId,
+  fetchV2Transcription,
+  segmentEnd,
   segmentStart,
   segmentText,
   type BaasWebhookPayload,
+  type TranscriptSegmentLike,
 } from "@/lib/meeting-baas/client";
 import { normalizeTranscript } from "@/lib/utils/meetings";
 import { summarizeTranscript } from "@/lib/ai/summarize";
+import type { MeetingStatus } from "@/types/database";
 
 // POST /api/webhooks/meeting-baas
-// Real Meeting BaaS contract (docs.meetingbaas.com):
-//   event `complete`  → recording + transcript ready (data.mp4, data.transcript[])
-//   event `failed`    → bot failed (data.error, data.message)
-//   event `transcription_complete` → retranscription available (data.bot_id only)
-// Always answer fast; Meeting BaaS retries failed deliveries.
+// Meeting BaaS v2 contract (docs.meetingbaas.com):
+//   `bot.status_change` → live lifecycle (status.code); SVIX-signed, account-level
+//   `bot.completed`     → artifacts ready: fetch data.transcription URL (4h presigned)
+//   `bot.failed`        → terminal failure
+// v1 `complete`/`failed`/`transcription_complete` kept as fallback.
+// Always answer fast; SVIX retries failed deliveries.
 
-function validSignature(
-  rawBody: string,
-  signature: string | null,
-  secret: string
-): boolean {
-  if (!signature) return false;
-  const expected = createHmac("sha256", secret).update(rawBody).digest("hex");
-  const a = Buffer.from(signature);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
+/** Map v2 lifecycle codes to our meeting statuses. */
+function statusForCode(code: string): MeetingStatus | null {
+  switch (code) {
+    case "queued":
+    case "pickup_delayed":
+    case "joining_call":
+    case "in_waiting_room":
+    case "in_waiting_for_host":
+    case "in_call_not_recording":
+      return "joining";
+    case "in_call_recording":
+    case "recording_paused":
+    case "recording_resumed":
+      return "in_progress";
+    case "call_ended":
+    case "recording_succeeded":
+    case "transcribing":
+      return "processing";
+    case "recording_failed":
+    case "meeting_error":
+    case "api_request_stop":
+    case "bot_rejected":
+    case "bot_removed":
+    case "bot_removed_too_early":
+    case "waiting_room_timeout":
+    case "invalid_meeting_url":
+    case "failed":
+      return "failed";
+    case "completed":
+      // Terminal "all done" — bot.completed does the real work; make sure
+      // we are at least out of recording states.
+      return "processing";
+    default:
+      return null;
+  }
+}
+
+async function runAiPipeline(
+  admin: ReturnType<typeof createAdminClient>,
+  meetingId: string
+) {
+  const { data: segments } = await admin
+    .from("transcript_segments")
+    .select("speaker,text,start_time")
+    .eq("meeting_id", meetingId)
+    .order("start_time", { ascending: true });
+
+  if (!segments || segments.length === 0) {
+    await admin
+      .from("meetings")
+      .update({ status: "completed", summary_status: "no_transcript" })
+      .eq("id", meetingId);
+    return;
+  }
+
+  if (!process.env.OPENAI_API_KEY) return; // stays `processing` until key set
+
+  const transcript = normalizeTranscript(segments);
+  const result = await summarizeTranscript(transcript);
+  const insights = [
+    { meeting_id: meetingId, type: "summary" as const, content: result.summary },
+    ...result.topics.map((t) => ({
+      meeting_id: meetingId,
+      type: "key_topic" as const,
+      content: t,
+    })),
+    ...result.decisions.map((d) => ({
+      meeting_id: meetingId,
+      type: "decision" as const,
+      content: d,
+    })),
+    ...result.action_items.map((a) => ({
+      meeting_id: meetingId,
+      type: "action_item" as const,
+      content: a.description,
+      metadata: { assignee: a.assignee ?? null, due_date: a.due_date ?? null },
+    })),
+  ];
+  await admin.from("meeting_insights").insert(insights);
+  await admin
+    .from("meetings")
+    .update({ status: "completed", summary_status: "done" })
+    .eq("id", meetingId);
 }
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
 
-  // Primary auth (per docs): the request carries our own API key back in
-  // `x-meeting-baas-api-key`. Optional hardening: HMAC-SHA256 of the raw
-  // body in `x-meetingbaas-signature` when MEETING_BAAS_WEBHOOK_SECRET is set.
-  const apiKey = process.env.MEETING_BAAS_API_KEY;
-  if (apiKey) {
-    const headerKey = req.headers.get("x-meeting-baas-api-key");
-    if (headerKey !== apiKey) {
-      const secret = process.env.MEETING_BAAS_WEBHOOK_SECRET ?? "";
-      const sig = req.headers.get("x-meetingbaas-signature");
-      if (!secret || !validSignature(rawBody, sig, secret)) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-      }
+  // v2 account webhooks are SVIX-signed. Verify when the endpoint secret is
+  // configured AND svix headers are present; otherwise fall back to the
+  // bot_id lookup below (bot IDs are unguessable UUIDs).
+  const svixSecret = process.env.MEETING_BAAS_WEBHOOK_SECRET ?? "";
+  const svixId = req.headers.get("svix-id");
+  const svixTimestamp = req.headers.get("svix-timestamp");
+  const svixSignature = req.headers.get("svix-signature");
+  if (svixSecret && svixId && svixTimestamp && svixSignature) {
+    try {
+      new Webhook(svixSecret).verify(rawBody, {
+        "svix-id": svixId,
+        "svix-timestamp": svixTimestamp,
+        "svix-signature": svixSignature,
+      });
+    } catch {
+      return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
   }
 
@@ -70,7 +152,7 @@ export async function POST(req: Request) {
 
   const { data: meeting } = await admin
     .from("meetings")
-    .select("id")
+    .select("id,status")
     .eq("bot_id", botId)
     .single();
 
@@ -78,16 +160,38 @@ export async function POST(req: Request) {
 
   const event = payload.event;
   const data = payload.data ?? {};
-  const meetingId = (meeting as { id: string }).id;
+  const meetingId = (meeting as { id: string; status: string }).id;
+  const currentStatus = (meeting as { id: string; status: string }).status;
 
-  if (event === "failed") {
-    console.error("Meeting BaaS bot failed:", data.error, data.message);
+  // --- v2: live lifecycle ---
+  if (event === "bot.status_change") {
+    const code = data.status?.code;
+    if (!code) return NextResponse.json({ ok: true, ignored: "no-code" });
+    const mapped = statusForCode(code);
+    if (!mapped) return NextResponse.json({ ok: true, ignored: code });
+    if (code === "completed" && currentStatus === "completed") {
+      return NextResponse.json({ ok: true });
+    }
+    const update: Record<string, string> = { status: mapped };
+    if (data.status?.start_time && code === "in_call_recording") {
+      update.started_at = new Date(data.status.start_time * 1000).toISOString();
+    }
+    if (data.status?.error_message) {
+      console.error(`Bot ${code}:`, data.status.error_message);
+    }
+    await admin.from("meetings").update(update).eq("id", meetingId);
+    return NextResponse.json({ ok: true, status: mapped });
+  }
+
+  // --- v2: terminal failure ---
+  if (event === "bot.failed" || event === "failed") {
+    console.error("Meeting BaaS bot failed:", data.error ?? data.message ?? data);
     await admin.from("meetings").update({ status: "failed" }).eq("id", meetingId);
     return NextResponse.json({ ok: true });
   }
 
+  // --- v1 fallback: retranscription notice ---
   if (event === "transcription_complete") {
-    // Retranscription landed — MVP has nothing to refetch, just ack.
     await admin
       .from("meetings")
       .update({ transcript_status: "received" })
@@ -95,8 +199,50 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true });
   }
 
+  // --- v2: completion with artifact URLs ---
+  if (event === "bot.completed") {
+    // NOTE: artifact URLs are presigned for 4h — download for permanence (V2).
+    await admin
+      .from("meetings")
+      .update({
+        status: "processing",
+        ended_at: new Date().toISOString(),
+        recording_url: typeof data.mp4 === "string" ? data.mp4 : null,
+        duration_seconds:
+          typeof data.duration_seconds === "number" ? data.duration_seconds : null,
+        transcript_status: "received",
+      })
+      .eq("id", meetingId);
+
+    if (typeof data.transcription === "string" && data.transcription.length > 0) {
+      try {
+        const fetched = await fetchV2Transcription(data.transcription);
+        const rows = fetched.map((s: TranscriptSegmentLike) => ({
+          meeting_id: meetingId,
+          speaker: s.speaker,
+          speaker_id: null,
+          text: s.text,
+          start_time: s.start_time,
+          end_time: s.end_time,
+        }));
+        if (rows.length > 0) {
+          await admin.from("transcript_segments").insert(rows);
+        }
+      } catch (e) {
+        console.error("Transcription download failed:", e);
+      }
+    }
+
+    try {
+      await runAiPipeline(admin, meetingId);
+    } catch (e) {
+      console.error("AI processing failed:", e);
+    }
+    return NextResponse.json({ ok: true });
+  }
+
+  // --- v1 fallback: inline transcript ---
   if (event === "complete") {
-    // NOTE: data.mp4 is valid 24h — download for permanent storage (V2).
     await admin
       .from("meetings")
       .update({
@@ -107,7 +253,6 @@ export async function POST(req: Request) {
       })
       .eq("id", meetingId);
 
-    // Persist transcript segments (words[] → text).
     const rawSegments = Array.isArray(data.transcript) ? data.transcript : [];
     const rows = rawSegments
       .map((s) => ({
@@ -116,63 +261,18 @@ export async function POST(req: Request) {
         speaker_id: null,
         text: segmentText(s),
         start_time: segmentStart(s),
-        end_time: s.end_time ?? null,
+        end_time: segmentEnd(s),
       }))
       .filter((r) => r.text.trim().length > 0);
     if (rows.length > 0) {
       await admin.from("transcript_segments").insert(rows);
     }
 
-    // Fire AI processing (best-effort; failure leaves meeting in `processing`).
     try {
-      const { data: segments } = await admin
-        .from("transcript_segments")
-        .select("speaker,text,start_time")
-        .eq("meeting_id", meetingId)
-        .order("start_time", { ascending: true });
-
-      if (!segments || segments.length === 0) {
-        await admin
-          .from("meetings")
-          .update({ status: "completed", summary_status: "no_transcript" })
-          .eq("id", meetingId);
-        return NextResponse.json({ ok: true });
-      }
-
-      if (!process.env.OPENAI_API_KEY) {
-        return NextResponse.json({ ok: true, ai: "skipped" });
-      }
-
-      const transcript = normalizeTranscript(segments);
-      const result = await summarizeTranscript(transcript);
-      const insights = [
-        { meeting_id: meetingId, type: "summary" as const, content: result.summary },
-        ...result.topics.map((t) => ({
-          meeting_id: meetingId,
-          type: "key_topic" as const,
-          content: t,
-        })),
-        ...result.decisions.map((d) => ({
-          meeting_id: meetingId,
-          type: "decision" as const,
-          content: d,
-        })),
-        ...result.action_items.map((a) => ({
-          meeting_id: meetingId,
-          type: "action_item" as const,
-          content: a.description,
-          metadata: { assignee: a.assignee ?? null, due_date: a.due_date ?? null },
-        })),
-      ];
-      await admin.from("meeting_insights").insert(insights);
-      await admin
-        .from("meetings")
-        .update({ status: "completed", summary_status: "done" })
-        .eq("id", meetingId);
+      await runAiPipeline(admin, meetingId);
     } catch (e) {
       console.error("AI processing failed:", e);
     }
-
     return NextResponse.json({ ok: true });
   }
 

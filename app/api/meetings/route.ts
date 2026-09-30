@@ -60,15 +60,16 @@ export async function POST(req: Request) {
     );
   }
 
-  // Dispatch bot (Phase 2). If BaaS is not configured yet, keep the
-  // meeting in `scheduled` so the flow can be tested end-to-end later.
+  // Dispatch bot (v2 API). Completion/failure webhooks arrive at the
+  // account-level endpoint — configure it once in the Meeting BaaS dashboard:
+  // https://<app>/api/webhooks/meeting-baas (events: bot.completed, bot.failed,
+  // bot.status_change). If BaaS is not configured, keep the meeting in
+  // `scheduled` so the flow can be tested end-to-end later.
   if (isMeetingBaasConfigured()) {
     try {
-      const webhookUrl = `${process.env.NEXT_PUBLIC_APP_URL}/api/webhooks/meeting-baas`;
       const { botId } = await joinMeetingViaBaas({
         meetingUrl,
-        botName: botName ?? "Meetly Notetaker",
-        webhookUrl,
+        botName: botName ?? "8xMeetly Notetaker",
       });
       await supabase
         .from("meetings")

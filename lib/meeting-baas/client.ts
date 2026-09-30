@@ -1,15 +1,17 @@
-// Meeting BaaS integration layer.
-// Verified against https://docs.meetingbaas.com (bot webhook reference):
-// - Base URL: https://api.meetingbaas.com, auth via `x-meeting-baas-api-key`
-// - Webhook events: `complete` | `failed` | `transcription_complete`
-// - bot_id lives in `data.bot_id`; transcript segments carry `words[]`
-//   (no per-segment `text` — reconstruct from words); recording is `data.mp4`.
+// Meeting BaaS integration layer — API v2.
+// Verified against https://docs.meetingbaas.com (v2 reference):
+// - Join: POST https://api.meetingbaas.com/v2/bots {bot_name, meeting_url}
+//         → {data: {bot_id}, success: true}, auth via `x-meeting-baas-api-key`
+// - Completion: v2 webhooks `bot.status_change` / `bot.completed` / `bot.failed`
+//   (account-level, SVIX-signed). bot.completed carries ARTIFACT URLS —
+//   fetch data.transcription ({result: {utterances: [{speaker, text, start,
+//   end, words[]}]}}) within 4h (presigned). Recording: data.mp4.
+// - v1 `complete`/`failed` handlers kept as fallback.
 // Meetly never implements its own browser-bot infrastructure.
 
 export interface JoinMeetingParams {
   meetingUrl: string;
   botName?: string;
-  webhookUrl?: string;
 }
 
 export interface JoinMeetingResult {
@@ -17,6 +19,9 @@ export interface JoinMeetingResult {
 }
 
 export type BaasEventType =
+  | "bot.status_change"
+  | "bot.completed"
+  | "bot.failed"
   | "complete"
   | "failed"
   | "transcription_complete";
@@ -32,24 +37,45 @@ export interface BaasTranscriptSegment {
   offset?: number;
   start_time?: number;
   end_time?: number;
+  start?: number;
+  end?: number;
   words?: BaasTranscriptWord[];
-  /** Non-standard fallback — real payloads use `words`. */
+  /** Fallbacks — v2 utterances and non-standard shapes. */
   text?: string;
+}
+
+export interface BaasStatusChange {
+  code?: string;
+  created_at?: string;
+  start_time?: number;
+  error_message?: string;
 }
 
 export interface BaasWebhookPayload {
   event: string;
   data?: {
     bot_id?: string;
+    event_id?: string;
     event_uuid?: string | null;
+    status?: BaasStatusChange;
+    transcription?: string;
     transcript?: BaasTranscriptSegment[];
     speakers?: string[];
     mp4?: string;
     audio?: string;
+    duration_seconds?: number;
     error?: string;
     message?: string;
+    extra?: Record<string, unknown>;
     [key: string]: unknown;
   };
+}
+
+export interface TranscriptSegmentLike {
+  speaker: string | null;
+  text: string;
+  start_time: number | null;
+  end_time: number | null;
 }
 
 function config() {
@@ -63,7 +89,7 @@ export function isMeetingBaasConfigured(): boolean {
   return Boolean(process.env.MEETING_BAAS_API_KEY);
 }
 
-/** Send a "join meeting" request to Meeting BaaS. Throws when unconfigured. */
+/** Send a "join meeting" request to Meeting BaaS (v2). Throws when unconfigured. */
 export async function joinMeetingViaBaas(
   params: JoinMeetingParams
 ): Promise<JoinMeetingResult> {
@@ -72,16 +98,15 @@ export async function joinMeetingViaBaas(
     throw new Error("Meeting BaaS is not configured (MEETING_BAAS_API_KEY).");
   }
 
-  const res = await fetch(`${baseUrl}/bots`, {
+  const res = await fetch(`${baseUrl}/v2/bots`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "x-meeting-baas-api-key": apiKey,
     },
     body: JSON.stringify({
-      meeting_url: params.meetingUrl,
       bot_name: params.botName ?? "8xMeetly Notetaker",
-      webhook_url: params.webhookUrl,
+      meeting_url: params.meetingUrl,
     }),
   });
 
@@ -90,8 +115,13 @@ export async function joinMeetingViaBaas(
     throw new Error(`Meeting BaaS join failed (${res.status}): ${text}`);
   }
 
-  const json = (await res.json()) as { bot_id?: string; id?: string };
-  const botId = json.bot_id ?? json.id;
+  const json = (await res.json()) as {
+    data?: { bot_id?: string };
+    success?: boolean;
+    bot_id?: string;
+    id?: string;
+  };
+  const botId = json.data?.bot_id ?? json.bot_id ?? json.id;
   if (!botId) throw new Error("Meeting BaaS response missing bot_id.");
   return { botId };
 }
@@ -100,7 +130,7 @@ export function extractBotId(payload: BaasWebhookPayload): string | null {
   return payload.data?.bot_id ?? null;
 }
 
-/** Reconstruct segment text from word-level timestamps. */
+/** Reconstruct segment text from word-level timestamps (v1 shape fallback). */
 export function segmentText(segment: BaasTranscriptSegment): string {
   if (Array.isArray(segment.words) && segment.words.length > 0) {
     return segment.words.map((w) => w.word).join(" ");
@@ -109,5 +139,42 @@ export function segmentText(segment: BaasTranscriptSegment): string {
 }
 
 export function segmentStart(segment: BaasTranscriptSegment): number | null {
-  return segment.start_time ?? segment.offset ?? null;
+  return segment.start_time ?? segment.start ?? segment.offset ?? null;
+}
+
+export function segmentEnd(segment: BaasTranscriptSegment): number | null {
+  return segment.end_time ?? segment.end ?? null;
+}
+
+/** Fetch a v2 transcription artifact (presigned URL, valid 4h) and normalize
+ *  its utterances to transcript segments. Accepts shape variants defensively. */
+export async function fetchV2Transcription(
+  transcriptionUrl: string
+): Promise<TranscriptSegmentLike[]> {
+  const res = await fetch(transcriptionUrl, {
+    signal: AbortSignal.timeout(20000),
+  });
+  if (!res.ok) {
+    throw new Error(`Transcription download failed (${res.status}).`);
+  }
+  const json = (await res.json()) as {
+    result?: { utterances?: BaasTranscriptSegment[] };
+    utterances?: BaasTranscriptSegment[];
+    transcript?: BaasTranscriptSegment[];
+  };
+
+  const utterances =
+    json.result?.utterances ??
+    json.utterances ??
+    json.transcript ??
+    (Array.isArray(json) ? (json as BaasTranscriptSegment[]) : []);
+
+  return utterances
+    .map((u) => ({
+      speaker: u.speaker ?? null,
+      text: segmentText(u),
+      start_time: segmentStart(u),
+      end_time: segmentEnd(u),
+    }))
+    .filter((r) => r.text.trim().length > 0);
 }
