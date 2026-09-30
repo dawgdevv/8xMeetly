@@ -1,7 +1,7 @@
 
-# Product Requirements Document — Meetly AI
+# Product Requirements Document — 8xMeetly
 
-**Product:** Meetly AI
+**Product:** 8xMeetly
 **Type:** AI Meeting Assistant / SaaS
 **Primary platform:** Web
 **Status:** MVP
