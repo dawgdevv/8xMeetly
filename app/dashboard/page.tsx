@@ -79,13 +79,15 @@ export default async function DashboardPage() {
             Here is what your meetings turned into.
           </p>
         </div>
-        <Link
-          href="/dashboard/meetings/new"
-          className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_16px_-9px_rgb(128_42_25/0.7)] transition-[background-color,transform,box-shadow] hover:bg-primary-dark hover:shadow-[0_10px_18px_-9px_rgb(128_42_25/0.7)] active:scale-[0.98]"
-        >
-          <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
-          New Meeting
-        </Link>
+        {meetings.length > 0 && (
+          <Link
+            href="/dashboard/meetings/new"
+            className="inline-flex min-h-11 items-center gap-2 rounded-full bg-primary px-5 py-2.5 text-sm font-bold text-white shadow-[0_8px_16px_-9px_rgb(128_42_25/0.7)] transition-[background-color,transform,box-shadow] hover:bg-primary-dark hover:shadow-[0_10px_18px_-9px_rgb(128_42_25/0.7)] active:scale-[0.98]"
+          >
+            <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
+            New Meeting
+          </Link>
+        )}
       </div>
 
       {!configured && (
@@ -104,37 +106,40 @@ export default async function DashboardPage() {
         </Card>
       )}
 
-      <div className="mt-7 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-4">
-        <StatCard label="Meetings" value={String(totalMeetings)} icon={Video} tint="bg-primary/10 text-primary" />
-        <StatCard label="This Week" value={String(thisWeek)} icon={CalendarDays} tint="bg-peach text-ink" />
-        <StatCard label="Minutes Recorded" value={String(totalMinutes)} icon={Timer} tint="bg-amber-100 text-amber-700" />
-        <StatCard label="Action Items" value={String(actionCount)} icon={ListTodo} tint="bg-green-100 text-green-700" />
-      </div>
-
-      <h2 className="mb-3.5 mt-9 text-lg font-extrabold tracking-tight text-ink sm:text-xl">
-        Recent Meetings
-      </h2>
       {meetings.length === 0 ? (
-        <EmptyState
-          icon={Video}
-          title="No Meetings Yet"
-          body="Connect your first meeting and let 8xMeetly take the notes for you."
-          actionLabel="Start Your First Meeting"
-          actionHref="/dashboard/meetings/new"
-        />
-      ) : (
-        <div className="space-y-3">
-          {meetings.map((m) => (
-            <MeetingCard
-              key={m.id}
-              id={m.id}
-              title={m.title}
-              status={m.status}
-              durationSeconds={m.duration_seconds}
-              createdAt={m.created_at}
-            />
-          ))}
+        <div className="mt-7 sm:mt-9">
+          <EmptyState
+            icon={Video}
+            title="Your meeting notes start here"
+            body="Add a Google Meet link and 8xMeetly will capture the conversation, then organize the summary and action items for you."
+            actionLabel="Start Your First Meeting"
+            actionHref="/dashboard/meetings/new"
+          />
         </div>
+      ) : (
+        <>
+          <div className="mt-7 grid grid-cols-2 gap-3 sm:mt-8 sm:gap-4 lg:grid-cols-4">
+            <StatCard label="Meetings" value={String(totalMeetings)} icon={Video} tint="bg-primary/10 text-primary" />
+            <StatCard label="This Week" value={String(thisWeek)} icon={CalendarDays} tint="bg-peach text-ink" />
+            <StatCard label="Minutes Recorded" value={String(totalMinutes)} icon={Timer} tint="bg-amber-100 text-amber-700" />
+            <StatCard label="Action Items" value={String(actionCount)} icon={ListTodo} tint="bg-green-100 text-green-700" />
+          </div>
+          <h2 className="mb-3.5 mt-9 text-lg font-extrabold tracking-tight text-ink sm:text-xl">
+            Recent Meetings
+          </h2>
+          <div className="space-y-3">
+            {meetings.map((m) => (
+              <MeetingCard
+                key={m.id}
+                id={m.id}
+                title={m.title}
+                status={m.status}
+                durationSeconds={m.duration_seconds}
+                createdAt={m.created_at}
+              />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );

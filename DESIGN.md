@@ -33,3 +33,9 @@ These rules keep the marketing site and signed-in workspace coherent as new scre
 - Use sentence case and concise, task-oriented labels. Explain the next step in plain language when a list or result is empty.
 - Keep dates, durations, counts, and status labels consistent across dashboard cards and meeting details.
 - Do not show placeholder metrics as real data. Add a useful empty state instead when there is no underlying content.
+
+## Reference guidance
+
+- [Carbon empty states](https://www.carbondesignsystem.com/building-blocks/core/patterns/empty-states): explain what belongs in the empty space and give the user one clear next step.
+- [Material adaptive layouts](https://developer.android.com/codelabs/adaptive-material-guidance): adapt component placement to available screen width instead of forcing one layout everywhere.
+- [GOV.UK focus states](https://design-system.service.gov.uk/get-started/focus-states/): keyboard focus must stay clearly visible against every surface.
