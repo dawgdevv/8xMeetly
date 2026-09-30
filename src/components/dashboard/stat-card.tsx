@@ -18,7 +18,7 @@ export function StatCard({
         aria-hidden="true"
         className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl ${tint}`}
       >
-        <Icon size={20} strokeWidth={2.25} />
+        <Icon size={20} strokeWidth={2.25} aria-hidden="true" />
       </span>
       <span className="min-w-0">
         <span className="block truncate text-[13px] font-medium text-muted">

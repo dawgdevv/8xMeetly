@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, LoaderCircle, Send, Sparkles } from "lucide-react";
+import { LoaderCircle, Send, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BackButton } from "@/components/ui/back-button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Field, FormStatus } from "@/components/ui/field";
@@ -45,13 +45,7 @@ export default function AskPage() {
 
   return (
     <div className="max-w-2xl">
-      <Link
-        href={`/dashboard/meetings/${meetingId}`}
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-stone-500 transition-colors hover:text-ink"
-      >
-        <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
-        Back to overview
-      </Link>
+      <BackButton fallbackHref={`/dashboard/meetings/${meetingId}`} />
       <h1 className="mt-3 text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
         Ask AI
       </h1>

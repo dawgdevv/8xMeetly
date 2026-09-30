@@ -129,7 +129,8 @@ export default function LandingPage() {
             href="/register"
             className="flex items-center gap-2 rounded-full bg-primary py-1.5 pl-4 pr-1.5 text-sm font-semibold text-white shadow-[0_8px_10px_-6px_rgb(64_48_36/0.41)] transition-[background-color,transform] hover:bg-primary-dark active:scale-[0.98]"
           >
-            Get Started
+            <span className="hidden min-[400px]:inline">Get Started</span>
+            <span className="min-[400px]:hidden">Start</span>
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#2b2118]">
               <ArrowUpRight size={15} strokeWidth={2.5} aria-hidden="true" />
             </span>
@@ -138,7 +139,7 @@ export default function LandingPage() {
       </div>
 
       {/* Hero */}
-      <section className="px-6 pb-4 pt-14 text-center sm:pt-20">
+      <section className="overflow-x-clip px-6 pb-4 pt-14 text-center sm:pt-20">
         <h1 className="mx-auto max-w-3xl text-balance text-[42px] font-extrabold leading-[1.05] tracking-tight sm:text-6xl">
           <span className="text-coral">Every Meeting.</span>{" "}
           <span className="text-ink">Notes, Decisions &amp; Action Items.</span>

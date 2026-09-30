@@ -1,12 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, LoaderCircle } from "lucide-react";
+import { ArrowRight, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { BackButton } from "@/components/ui/back-button";
 import { Field, FormStatus } from "@/components/ui/field";
 import { isValidMeetingUrl } from "@/lib/utils/meetings";
 
@@ -49,13 +49,7 @@ export default function NewMeetingPage() {
 
   return (
     <div className="max-w-xl">
-      <Link
-        href="/dashboard/meetings"
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-stone-500 transition-colors hover:text-ink"
-      >
-        <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
-        All meetings
-      </Link>
+      <BackButton fallbackHref="/dashboard/meetings" />
       <h1 className="mt-3 text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
         Start a New Meeting
       </h1>

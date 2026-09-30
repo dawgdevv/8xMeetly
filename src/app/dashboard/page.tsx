@@ -16,6 +16,7 @@ export default async function DashboardPage() {
     duration_seconds: number | null;
     created_at: string;
   }> = [];
+  let actionCount = 0;
   let configured = true;
 
   try {
@@ -26,12 +27,24 @@ export default async function DashboardPage() {
         (user.user_metadata?.full_name as string | undefined)?.split(" ")[0] ??
         user.email?.split("@")[0] ??
         null;
-      const { data } = await supabase
-        .from("meetings")
-        .select("id,title,status,duration_seconds,created_at")
-        .order("created_at", { ascending: false })
-        .limit(10);
+      const [{ data }, { data: idRows }] = await Promise.all([
+        supabase
+          .from("meetings")
+          .select("id,title,status,duration_seconds,created_at")
+          .order("created_at", { ascending: false })
+          .limit(10),
+        supabase.from("meetings").select("id"),
+      ]);
       meetings = (data ?? []) as typeof meetings;
+      const ids = ((idRows ?? []) as Array<{ id: string }>).map((r) => r.id);
+      if (ids.length > 0) {
+        const { count } = await supabase
+          .from("meeting_insights")
+          .select("id", { count: "exact", head: true })
+          .eq("type", "action_item")
+          .in("meeting_id", ids);
+        actionCount = count ?? 0;
+      }
     }
   } catch {
     configured = false;
@@ -87,7 +100,7 @@ export default async function DashboardPage() {
         <StatCard label="Meetings" value={String(meetings.length)} icon={Video} tint="bg-primary/10 text-primary" />
         <StatCard label="This Week" value={String(thisWeek)} icon={CalendarDays} tint="bg-peach text-ink" />
         <StatCard label="Minutes Recorded" value={String(totalMinutes)} icon={Timer} tint="bg-amber-100 text-amber-700" />
-        <StatCard label="Action Items" value="—" icon={ListTodo} tint="bg-green-100 text-green-700" />
+        <StatCard label="Action Items" value={String(actionCount)} icon={ListTodo} tint="bg-green-100 text-green-700" />
       </div>
 
       <h2 className="mb-3 mt-8 text-lg font-extrabold tracking-tight text-ink">

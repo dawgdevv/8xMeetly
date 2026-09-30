@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { BackButton } from "@/components/ui/back-button";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function SettingsPage() {
@@ -15,7 +16,8 @@ export default async function SettingsPage() {
 
   return (
     <div className="max-w-xl">
-      <h1 className="text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
+      <BackButton fallbackHref="/dashboard" />
+      <h1 className="mt-3 text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
         Settings
       </h1>
       <p className="mb-5 mt-1 text-sm text-muted">Your workspace preferences.</p>

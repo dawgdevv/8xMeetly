@@ -1,116 +1,46 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
-import { Field, FormStatus } from "@/components/ui/field";
+import { BackButton } from "@/components/ui/back-button";
 import { GoogleButton } from "@/components/auth/google-button";
-import { createClient } from "@/lib/supabase/client";
+
+const PERKS = [
+  "Unlimited meetings during beta",
+  "AI summaries, decisions & action items",
+  "Searchable transcript archive",
+];
 
 export default function RegisterPage() {
-  const router = useRouter();
-  const [fullName, setFullName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setLoading(true);
-    try {
-      const supabase = createClient();
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName } },
-      });
-      if (error) throw error;
-      router.push("/dashboard");
-      router.refresh();
-    } catch (err) {
-      setError(
-        err instanceof Error
-          ? `${err.message} Fix it and try again.`
-          : "Registration failed. Fix the highlighted fields and try again."
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4 py-10">
       <Link href="/" aria-label="8xMeetly home">
         <Logo />
       </Link>
       <Card className="mt-8 w-full max-w-md p-7 sm:p-8">
-        <h1 className="text-balance text-center text-2xl font-extrabold tracking-tight text-ink">
+        <BackButton label="Home" fallbackHref="/" />
+        <h1 className="mt-4 text-balance text-center text-2xl font-extrabold tracking-tight text-ink">
           Create Your Account
         </h1>
         <p className="mt-1.5 text-center text-sm text-muted">
           Start capturing meetings in under a minute
         </p>
+        <ul className="mt-5 space-y-2">
+          {PERKS.map((perk) => (
+            <li key={perk} className="flex items-start gap-2.5 text-sm text-stone-600">
+              <CheckCircle2
+                size={17}
+                strokeWidth={2.5}
+                aria-hidden="true"
+                className="mt-0.5 shrink-0 text-green-600"
+              />
+              <span className="min-w-0">{perk}</span>
+            </li>
+          ))}
+        </ul>
         <div className="mt-6">
           <GoogleButton label="Sign up with Google" />
         </div>
-        <div aria-hidden="true" className="my-5 flex items-center gap-3">
-          <span className="h-px flex-1 bg-border" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-muted">
-            or with email
-          </span>
-          <span className="h-px flex-1 bg-border" />
-        </div>
-        <form className="space-y-4" onSubmit={onSubmit}>
-          <Field label="Name" htmlFor="register-name">
-            <Input
-              id="register-name"
-              name="name"
-              type="text"
-              autoComplete="name"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Jordan Smith…"
-            />
-          </Field>
-          <Field label="Email" htmlFor="register-email">
-            <Input
-              id="register-email"
-              name="email"
-              type="email"
-              autoComplete="email"
-              spellCheck={false}
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com…"
-            />
-          </Field>
-          <Field label="Password" htmlFor="register-password" hint="8+ characters recommended.">
-            <Input
-              id="register-password"
-              name="new-password"
-              type="password"
-              autoComplete="new-password"
-              required
-              minLength={8}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Choose a password…"
-            />
-          </Field>
-          <FormStatus error={error} />
-          <Button type="submit" size="lg" className="w-full" disabled={loading}>
-            {loading && <LoaderCircle size={17} aria-hidden="true" className="animate-spin" />}
-            {loading ? "Creating account…" : "Create Account"}
-          </Button>
-        </form>
         <p className="mt-5 text-center text-sm text-muted">
           Already have an account?{" "}
           <Link href="/login" className="font-semibold text-primary hover:underline">

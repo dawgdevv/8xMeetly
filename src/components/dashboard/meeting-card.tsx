@@ -23,7 +23,7 @@ export function MeetingCard({
   return (
     <Link
       href={`/dashboard/meetings/${id}`}
-      className="block rounded-[20px] focus-visible:outline-none"
+      className="block rounded-[20px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
       <Card className="flex items-center gap-3 p-4 transition-[border-color,box-shadow,transform] hover:-translate-y-px hover:border-primary/40 hover:shadow-[0_12px_28px_-16px_rgb(27_37_96/0.35)] sm:gap-4 sm:p-5">
         <span

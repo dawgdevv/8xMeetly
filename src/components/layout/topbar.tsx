@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { LogOut, Plus } from "lucide-react";
+import { LogOut } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { createClient } from "@/lib/supabase/client";
 
@@ -26,13 +26,6 @@ export function Topbar() {
         <Logo />
       </Link>
       <div className="flex-1" />
-      <Link
-        href="/dashboard/meetings/new"
-        className="flex items-center gap-1.5 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white transition-[background-color,transform] hover:bg-ink/90 active:scale-[0.98] md:hidden"
-      >
-        <Plus size={16} strokeWidth={2.5} aria-hidden="true" />
-        New
-      </Link>
       <button
         type="button"
         onClick={signOut}

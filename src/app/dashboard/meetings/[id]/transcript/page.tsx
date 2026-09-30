@@ -1,7 +1,6 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { BackButton } from "@/components/ui/back-button";
 import { TranscriptSearch } from "@/components/transcript/transcript-search";
 
 export default async function TranscriptPage({
@@ -30,13 +29,7 @@ export default async function TranscriptPage({
 
   return (
     <div className="max-w-3xl">
-      <Link
-        href={`/dashboard/meetings/${id}`}
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-stone-500 transition-colors hover:text-ink"
-      >
-        <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
-        Back to overview
-      </Link>
+      <BackButton fallbackHref={`/dashboard/meetings/${id}`} />
       <h1 className="mt-3 text-balance text-2xl font-extrabold tracking-tight text-ink sm:text-[28px]">
         {title}
       </h1>

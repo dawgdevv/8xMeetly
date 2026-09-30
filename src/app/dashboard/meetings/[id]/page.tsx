@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import {
-  ArrowLeft,
   CalendarDays,
   Check,
   CheckCircle2,
@@ -12,6 +11,8 @@ import {
   Tags,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { BackButton } from "@/components/ui/back-button";
+import { LiveRefresher } from "@/components/meetings/live-refresher";
 import { StatusBadge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/server";
 import { formatDuration, formatTimestamp } from "@/lib/utils/meetings";
@@ -121,13 +122,8 @@ export default async function MeetingDetailPage({
 
   return (
     <div className="max-w-3xl">
-      <Link
-        href="/dashboard/meetings"
-        className="inline-flex items-center gap-1.5 text-sm font-semibold text-stone-500 transition-colors hover:text-ink"
-      >
-        <ArrowLeft size={16} strokeWidth={2.25} aria-hidden="true" />
-        All meetings
-      </Link>
+      <LiveRefresher meetingId={id} active={!done} />
+      <BackButton fallbackHref="/dashboard/meetings" />
 
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
