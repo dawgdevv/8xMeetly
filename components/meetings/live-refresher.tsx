@@ -19,6 +19,20 @@ export function LiveRefresher({
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let channel: any = null;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let lastRefreshAt = 0;
+    const refreshFromRealtime = () => {
+      // A bulk transcript insert can emit one event per segment. Throttle the
+      // resulting server-component refreshes so the UI doesn't stampede.
+      if (refreshTimer) return;
+      const wait = Math.max(0, 200 - (Date.now() - lastRefreshAt));
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        lastRefreshAt = Date.now();
+        router.refresh();
+      }, wait);
+    };
+
     try {
       const supabase = createClient();
       channel = supabase
@@ -31,17 +45,17 @@ export function LiveRefresher({
             table: "meetings",
             filter: `id=eq.${meetingId}`,
           },
-          () => router.refresh()
+          refreshFromRealtime
         )
         .on(
           "postgres_changes",
           {
-            event: "INSERT",
+            event: "*",
             schema: "public",
             table: "transcript_segments",
             filter: `meeting_id=eq.${meetingId}`,
           },
-          () => router.refresh()
+          refreshFromRealtime
         )
         .on(
           "postgres_changes",
@@ -51,9 +65,13 @@ export function LiveRefresher({
             table: "meeting_insights",
             filter: `meeting_id=eq.${meetingId}`,
           },
-          () => router.refresh()
+          refreshFromRealtime
         )
-        .subscribe();
+        .subscribe((status) => {
+          if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            console.warn("Meeting realtime channel is unavailable", { meetingId, status });
+          }
+        });
     } catch {
       // Skeleton mode — polling below still works against nothing.
     }
@@ -76,6 +94,7 @@ export function LiveRefresher({
     const timer = setInterval(syncStatus, 15000);
     return () => {
       clearInterval(timer);
+      if (refreshTimer) clearTimeout(refreshTimer);
       if (channel) channel.unsubscribe();
     };
   }, [meetingId, active, router]);

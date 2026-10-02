@@ -84,17 +84,18 @@ export default async function MeetingDetailPage({
     status: string;
     duration_seconds: number | null;
     transcript_status: string | null;
+    summary_status: string | null;
     created_at: string;
   } | null = null;
   let insights: Array<{ type: string; content: string }> = [];
-  let segments: Array<{ id: string; speaker: string | null; text: string; start_time: number | null }> = [];
+  let segments: Array<{ id: string; speaker: string | null; text: string; start_time: number | null; is_final: boolean }> = [];
   let transcriptCount = 0;
 
   try {
     const supabase = await createClient();
     const { data: m } = await supabase
       .from("meetings")
-      .select("id,title,status,duration_seconds,transcript_status,created_at")
+      .select("id,title,status,duration_seconds,transcript_status,summary_status,created_at")
       .eq("id", id)
       .single();
     if (!m) notFound();
@@ -104,15 +105,16 @@ export default async function MeetingDetailPage({
       status: String(m.status),
       duration_seconds: (m.duration_seconds as number | null) ?? null,
       transcript_status: (m.transcript_status as string | null) ?? null,
+      summary_status: (m.summary_status as string | null) ?? null,
       created_at: String(m.created_at),
     };
     const [{ data: ins }, { data: seg }, { count }] = await Promise.all([
       supabase.from("meeting_insights").select("type,content").eq("meeting_id", id),
       supabase
         .from("transcript_segments")
-        .select("id,speaker,text,start_time")
+        .select("id,speaker,text,start_time,is_final")
         .eq("meeting_id", id)
-        .order("start_time", { ascending: true })
+        .order("start_time", { ascending: m.status === "completed" })
         .limit(200),
       supabase
         .from("transcript_segments")
@@ -165,7 +167,8 @@ export default async function MeetingDetailPage({
           </Link>
         </Card>
       ) : !done ? (
-        <Card className="mt-4 p-6 sm:p-7">
+        <div className="mt-4 space-y-4">
+        <Card className="p-6 sm:p-7">
           <p className="flex items-center gap-2.5 font-bold text-ink">
             {meeting.status === "scheduled" ? (
               <>
@@ -175,7 +178,9 @@ export default async function MeetingDetailPage({
             ) : meeting.status === "processing" ? (
               <>
                 <LoaderCircle size={18} aria-hidden="true" className="motion-safe:animate-spin text-primary" />
-                Preparing your notes…
+                {segments.length > 0
+                  ? "Transcript captured. Preparing your notes…"
+                  : "Preparing your transcript and notes…"}
               </>
             ) : meeting.status === "in_meeting" ? (
               <>
@@ -230,6 +235,28 @@ export default async function MeetingDetailPage({
             We’ll update this page as the meeting progresses.
           </p>
         </Card>
+        {meeting.status === "processing" && segments.length > 0 && (
+          <Section icon={ListChecks} title="Transcript so far">
+            <div className="space-y-4">
+              {segments.slice(0, 5).map((s) => (
+                <div key={s.id} className="min-w-0">
+                  <p className="flex items-center gap-2 text-xs font-semibold tabular-nums text-muted">
+                    {formatTimestamp(s.start_time)} · {s.speaker ?? "Speaker"}
+                    {!s.is_final && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-primary">Interim</span>}
+                  </p>
+                  <p className="mt-0.5 line-clamp-2 text-sm leading-relaxed text-stone-600">{s.text}</p>
+                </div>
+              ))}
+            </div>
+            <Link
+              href={`/dashboard/meetings/${id}/transcript`}
+              className="mt-4 inline-flex min-h-10 items-center gap-1.5 rounded-full px-3 text-sm font-bold text-primary transition-colors hover:bg-primary/[0.05] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              Open live transcript <ArrowRight size={15} aria-hidden="true" />
+            </Link>
+          </Section>
+        )}
+        </div>
       ) : (
         <div className="mt-4 space-y-4">
           {meeting.transcript_status === "unavailable" && segments.length === 0 && (
@@ -262,7 +289,11 @@ export default async function MeetingDetailPage({
                 <div>
                   <h2 className="font-extrabold text-ink">Your transcript is ready</h2>
                   <p className="mt-1 text-sm leading-relaxed text-muted">
-                    Meeting notes aren’t available for this call yet. You can read the conversation or ask a question about it.
+                    {meeting.summary_status === "failed"
+                      ? "The transcript is ready, but note generation failed. You can still read the conversation or ask a question about it."
+                      : meeting.summary_status === "unavailable"
+                        ? "The transcript is ready, but AI notes aren’t configured yet. You can still read the conversation or ask a question about it."
+                        : "Meeting notes aren’t available for this call yet. You can read the conversation or ask a question about it."}
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-wrap gap-2">
@@ -329,8 +360,9 @@ export default async function MeetingDetailPage({
               <div className="space-y-4">
                 {segments.slice(0, 5).map((s) => (
                   <div key={s.id} className="min-w-0">
-                    <p className="text-xs font-semibold tabular-nums text-muted">
+                    <p className="flex items-center gap-2 text-xs font-semibold tabular-nums text-muted">
                       {formatTimestamp(s.start_time)} · {s.speaker ?? "Speaker"}
+                      {!s.is_final && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-primary">Interim</span>}
                     </p>
                     <p className="mt-0.5 line-clamp-2 text-sm leading-relaxed text-stone-600">{s.text}</p>
                   </div>

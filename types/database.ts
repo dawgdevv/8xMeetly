@@ -92,6 +92,8 @@ export interface Database {
           speaker: string | null;
           speaker_id: string | null;
           text: string;
+          provider_segment_key: string | null;
+          is_final: boolean;
           start_time: number | null;
           end_time: number | null;
           created_at: string;
@@ -102,6 +104,8 @@ export interface Database {
           speaker?: string | null;
           speaker_id?: string | null;
           text: string;
+          provider_segment_key?: string | null;
+          is_final?: boolean;
           start_time?: number | null;
           end_time?: number | null;
           created_at?: string;
@@ -110,6 +114,8 @@ export interface Database {
           speaker?: string | null;
           speaker_id?: string | null;
           text?: string;
+          provider_segment_key?: string | null;
+          is_final?: boolean;
           start_time?: number | null;
           end_time?: number | null;
         };

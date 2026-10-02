@@ -13,6 +13,7 @@ import {
 import { normalizeTranscript } from "@/lib/utils/meetings";
 import { summarizeTranscript } from "@/lib/ai/summarize";
 import { statusFromBaasCode } from "@/lib/meeting-baas/status";
+import { providerSegmentKey } from "@/lib/meeting-baas/transcript-key";
 
 // POST /api/webhooks/meeting-baas
 // Meeting BaaS v2 contract (docs.meetingbaas.com):
@@ -26,21 +27,34 @@ async function runAiPipeline(
   admin: ReturnType<typeof createAdminClient>,
   meetingId: string
 ) {
-  const { data: segments } = await admin
+  const { data: segments, error: segmentsError } = await admin
     .from("transcript_segments")
     .select("speaker,text,start_time")
     .eq("meeting_id", meetingId)
     .order("start_time", { ascending: true });
+  if (segmentsError) throw segmentsError;
 
   if (!segments || segments.length === 0) {
-    await admin
+    const { error } = await admin
       .from("meetings")
       .update({ status: "completed", summary_status: "no_transcript" })
       .eq("id", meetingId);
+    if (error) throw error;
     return;
   }
 
-  if (!process.env.OPENAI_API_KEY) return; // stays `processing` until key set
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn("Transcript saved without AI notes because OPENAI_API_KEY is not configured", {
+      meetingId,
+      segmentCount: segments.length,
+    });
+    const { error } = await admin
+      .from("meetings")
+      .update({ status: "completed", summary_status: "unavailable" })
+      .eq("id", meetingId);
+    if (error) throw error;
+    return;
+  }
 
   const transcript = normalizeTranscript(segments);
   const result = await summarizeTranscript(transcript);
@@ -63,11 +77,13 @@ async function runAiPipeline(
       metadata: { assignee: a.assignee ?? null, due_date: a.due_date ?? null },
     })),
   ];
-  await admin.from("meeting_insights").insert(insights);
-  await admin
+  const { error: insightError } = await admin.from("meeting_insights").insert(insights);
+  if (insightError) throw insightError;
+  const { error: completeError } = await admin
     .from("meetings")
     .update({ status: "completed", summary_status: "done" })
     .eq("id", meetingId);
+  if (completeError) throw completeError;
 }
 
 export async function POST(req: Request) {
@@ -218,19 +234,51 @@ export async function POST(req: Request) {
     if (typeof data.transcription === "string" && data.transcription.length > 0) {
       try {
         const fetched = await fetchV2Transcription(data.transcription);
-        const rows = fetched.map((s: TranscriptSegmentLike) => ({
-          meeting_id: meetingId,
-          speaker: s.speaker,
-          speaker_id: null,
-          text: s.text,
-          start_time: s.start_time,
-          end_time: s.end_time,
-        }));
+        const { data: liveRows, error: liveRowsError } = await admin
+          .from("transcript_segments")
+          .select("start_time,provider_segment_key")
+          .eq("meeting_id", meetingId)
+          .not("provider_segment_key", "is", null);
+        if (liveRowsError) throw liveRowsError;
+
+        const unmatchedLiveRows = [...(liveRows ?? [])];
+        const rows = fetched.map((s: TranscriptSegmentLike) => {
+          let providerKey = providerSegmentKey(botId, s.start_time);
+          if (s.start_time !== null) {
+            let closestIndex = -1;
+            let closestDelta = 1.25;
+            unmatchedLiveRows.forEach((live, index) => {
+              if (live.start_time === null || !live.provider_segment_key) return;
+              const delta = Math.abs(live.start_time - s.start_time!);
+              if (delta < closestDelta) {
+                closestDelta = delta;
+                closestIndex = index;
+              }
+            });
+            if (closestIndex >= 0) {
+              providerKey = unmatchedLiveRows.splice(closestIndex, 1)[0].provider_segment_key;
+            }
+          }
+          return {
+            meeting_id: meetingId,
+            speaker: s.speaker,
+            speaker_id: null,
+            text: s.text,
+            start_time: s.start_time,
+            end_time: s.end_time,
+            provider_segment_key: providerKey,
+            is_final: true,
+          };
+        });
         if (rows.length > 0) {
-          await admin.from("transcript_segments").insert(rows);
+          const { error: transcriptError } = await admin
+            .from("transcript_segments")
+            .upsert(rows, { onConflict: "provider_segment_key" });
+          if (transcriptError) throw transcriptError;
         }
       } catch (e) {
         console.error("Transcription download failed:", e);
+        return NextResponse.json({ error: "Could not save transcript artifact" }, { status: 500 });
       }
     }
 
@@ -238,6 +286,11 @@ export async function POST(req: Request) {
       await runAiPipeline(admin, meetingId);
     } catch (e) {
       console.error("AI processing failed:", e);
+      const { error } = await admin
+        .from("meetings")
+        .update({ status: "completed", summary_status: "failed" })
+        .eq("id", meetingId);
+      if (error) console.error("Could not persist AI failure state", { meetingId, error: error.message });
     }
     return NextResponse.json({ ok: true });
   }
@@ -263,16 +316,23 @@ export async function POST(req: Request) {
         text: segmentText(s),
         start_time: segmentStart(s),
         end_time: segmentEnd(s),
+        provider_segment_key: providerSegmentKey(botId, segmentStart(s)),
+        is_final: true,
       }))
       .filter((r) => r.text.trim().length > 0);
     if (rows.length > 0) {
-      await admin.from("transcript_segments").insert(rows);
+      await admin.from("transcript_segments").upsert(rows, { onConflict: "provider_segment_key" });
     }
 
     try {
       await runAiPipeline(admin, meetingId);
     } catch (e) {
       console.error("AI processing failed:", e);
+      const { error } = await admin
+        .from("meetings")
+        .update({ status: "completed", summary_status: "failed" })
+        .eq("id", meetingId);
+      if (error) console.error("Could not persist AI failure state", { meetingId, error: error.message });
     }
     return NextResponse.json({ ok: true });
   }

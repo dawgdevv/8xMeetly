@@ -1,0 +1,13 @@
+{
+  "name": "8xmeetly-live-transcript",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.47.0",
+    "ws": "^8.18.0"
+  }
+}

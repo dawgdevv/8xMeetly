@@ -10,7 +10,7 @@ const PAGE_SIZE = 50;
 export function TranscriptSearch({
   segments,
 }: {
-  segments: Array<{ id: string; speaker: string | null; text: string; start_time: number | null }>;
+  segments: Array<{ id: string; speaker: string | null; text: string; start_time: number | null; is_final: boolean }>;
 }) {
   const [q, setQ] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
@@ -75,9 +75,10 @@ export function TranscriptSearch({
       <div className="mt-3 space-y-5 rounded-[20px] border border-border bg-card p-5 shadow-[0_1px_2px_rgb(41_39_33/0.04),0_12px_32px_-25px_rgb(41_39_33/0.34)] sm:p-7">
         {filtered.slice(0, visibleCount).map((s) => (
           <div key={s.id} className="min-w-0">
-            <p className="text-xs font-bold tabular-nums text-primary">
+            <p className="flex items-center gap-2 text-xs font-bold tabular-nums text-primary">
               {formatTimestamp(s.start_time)} ·{" "}
               <span className="text-ink">{s.speaker ?? "Speaker"}</span>
+              {!s.is_final && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-wide text-primary">Interim</span>}
             </p>
             <p className="mt-1 break-words text-[15px] leading-relaxed text-stone-600">{s.text}</p>
           </div>

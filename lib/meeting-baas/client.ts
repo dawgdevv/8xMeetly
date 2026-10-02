@@ -147,6 +147,21 @@ export async function joinMeetingViaBaas(
       meeting_url: params.meetingUrl,
       transcription_enabled: true,
       transcription_config: { provider: "gladia" },
+      ...(process.env.MEETING_BAAS_STREAMING_URL
+        ? {
+            streaming_enabled: true,
+            streaming_config: {
+              mode: "transcription",
+              output_url: process.env.MEETING_BAAS_STREAMING_URL,
+              transcription: {
+                provider: "gladia",
+                api_key: null,
+                custom_params: null,
+                region: null,
+              },
+            },
+          }
+        : {}),
     }),
   });
 

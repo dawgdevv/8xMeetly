@@ -22,32 +22,34 @@ export default async function TranscriptPage({
 }) {
   const { id } = await params;
   let meeting: MeetingState | null = null;
-  let segments: Array<{ id: string; speaker: string | null; text: string; start_time: number | null }> = [];
+  let segments: Array<{ id: string; speaker: string | null; text: string; start_time: number | null; is_final: boolean }> = [];
   let transcriptCount = 0;
 
   try {
     const supabase = await createClient();
-    const [{ data: m }, { data: seg }, { count }] = await Promise.all([
-      supabase
-        .from("meetings")
-        .select("title,status,duration_seconds,transcript_status,created_at")
-        .eq("id", id)
-        .single(),
+    const { data: m } = await supabase
+      .from("meetings")
+      .select("title,status,duration_seconds,transcript_status,created_at")
+      .eq("id", id)
+      .single();
+    if (!m) notFound();
+    const status = String(m.status);
+    const isTerminal = status === "completed" || status === "failed";
+    const [{ data: seg }, { count }] = await Promise.all([
       supabase
         .from("transcript_segments")
-        .select("id,speaker,text,start_time")
+        .select("id,speaker,text,start_time,is_final")
         .eq("meeting_id", id)
-        .order("start_time", { ascending: true })
+        .order("start_time", { ascending: isTerminal })
         .limit(1000),
       supabase
         .from("transcript_segments")
         .select("id", { count: "exact", head: true })
         .eq("meeting_id", id),
     ]);
-    if (!m) notFound();
     meeting = {
       title: (m.title as string | null) ?? null,
-      status: String(m.status),
+      status,
       duration_seconds: (m.duration_seconds as number | null) ?? null,
       transcript_status: (m.transcript_status as string | null) ?? null,
       created_at: String(m.created_at),
@@ -80,7 +82,9 @@ export default async function TranscriptPage({
           <h2 className="text-lg font-extrabold tracking-tight text-ink">Meeting transcript</h2>
           <p className="mt-1 text-sm text-muted">
             {transcriptCount > 0
-              ? "Search the conversation or scan it from the beginning."
+              ? terminal
+                ? "Search the conversation or scan it from the beginning."
+                : "Live transcript · newest lines first. Search to find a specific detail."
               : "The conversation will appear here when it’s ready."}
           </p>
         </div>
