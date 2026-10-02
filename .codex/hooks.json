@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .agent-logs/codex_capture.py prompt"
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.agent-logs/codex_capture.py\" prompt"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "python3 .agent-logs/codex_capture.py response"
+            "command": "python3 \"$(git rev-parse --show-toplevel)/.agent-logs/codex_capture.py\" response"
           }
         ]
       }

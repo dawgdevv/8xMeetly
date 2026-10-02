@@ -11,8 +11,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-ROOT = Path.cwd()
-LOG_DIR = ROOT / ".agent-logs"
+LOG_DIR = Path(__file__).resolve().parent
+ROOT = LOG_DIR.parent
 SESSION_ID_RE = re.compile(r"[^A-Za-z0-9_-]")
 
 
