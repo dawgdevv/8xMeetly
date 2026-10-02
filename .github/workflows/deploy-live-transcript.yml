@@ -69,5 +69,5 @@ jobs:
                if curl --fail --silent http://127.0.0.1:8080/healthz >/dev/null 2>&1; then healthy=1; break; fi; \
                sleep 2; \
              done; \
-             test \"$healthy\" -eq 1; \
+             test \"\$healthy\" -eq 1; \
              rm -f '$remote_archive'"
