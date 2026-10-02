@@ -69,8 +69,8 @@ export async function updateSession(request: NextRequest) {
     return carrySession(NextResponse.redirect(url), supabaseResponse);
   }
 
-  // Authenticated users don't need the auth pages.
-  if (user && (pathname === "/login" || pathname === "/register")) {
+  // Authenticated users should land in their workspace, not public/auth pages.
+  if (user && (pathname === "/" || pathname === "/login" || pathname === "/register")) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return carrySession(NextResponse.redirect(url), supabaseResponse);
