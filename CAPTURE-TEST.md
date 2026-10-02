@@ -13,6 +13,8 @@
 
 The project hooks were reviewed and trusted in Codex’s `/hooks` screen. The first canary ran in a separate TUI session; the second ran through a fresh `codex exec` session. Both wrote a prompt and final response without manually invoking the capture script.
 
+The earlier working session was recovered after it ended from Codex’s saved rollout: [recovered session log](.agent-logs/2026-09-30_21-53-35_01a0f44e-4a10-7962-ba3b-941f2ac71126.md). It contains 53 user prompts, 41 assistant final replies, and 13 original image attachments saved under `.agent-logs/assets/`. This recovery is labeled as post-hoc and does not claim those earlier turns were captured live.
+
 ## Canary entries (raw)
 
 ### Canary 1 — session `01a0fc61-005a-7413-8e2f-8c00a8e2028c`
