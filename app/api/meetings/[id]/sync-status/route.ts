@@ -30,6 +30,65 @@ export async function POST(
     return NextResponse.json({ status: meeting.status, changed: false });
   }
 
+  // A meeting already marked as processing has ended. Finalize its persisted
+  // live transcript before making another network request to Meeting BaaS;
+  // this also recovers meetings when the provider status endpoint is delayed.
+  if (meeting.status === "processing") {
+    const admin = createAdminClient();
+    if (["done", "no_transcript", "unavailable", "failed"].includes(meeting.summary_status ?? "")) {
+      const { error: completeError } = await admin
+        .from("meetings")
+        .update({ status: "completed", updated_at: new Date().toISOString() })
+        .eq("id", id);
+      if (completeError) {
+        return NextResponse.json({ error: "Could not complete finalized meeting." }, { status: 500 });
+      }
+      return NextResponse.json({ status: "completed", changed: true });
+    }
+
+    const { count, error: countError } = await admin
+      .from("transcript_segments")
+      .select("id", { count: "exact", head: true })
+      .eq("meeting_id", id);
+    if (countError) {
+      console.error("Could not inspect saved transcript during status reconciliation", {
+        meetingId: id,
+        error: countError.message,
+      });
+    } else if ((count ?? 0) > 0) {
+      try {
+        await finalizeMeeting(admin, id, meeting.bot_id);
+      } catch (error) {
+        // finalizeMeeting writes a terminal failed summary state when note
+        // generation fails, so still refresh the UI below.
+        console.error("Could not finalize saved live transcript", {
+          meetingId: id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+
+      const { data: current, error: currentError } = await admin
+        .from("meetings")
+        .select("status,summary_status")
+        .eq("id", id)
+        .single();
+      if (!currentError && current && current.status !== "processing") {
+        return NextResponse.json({
+          status: current.status,
+          providerStatus: "transcript_finalized",
+          changed: true,
+        });
+      }
+      if (meeting.summary_status === "running") {
+        return NextResponse.json({
+          status: current?.status ?? meeting.status,
+          providerStatus: "finalization_in_progress",
+          changed: false,
+        });
+      }
+    }
+  }
+
   let bot;
   try {
     bot = await fetchBaasBotSnapshot(meeting.bot_id);
@@ -44,7 +103,9 @@ export async function POST(
   // The provider's completed state is terminal. If it has no transcript
   // artifact, complete cleanly with an explicit no-transcript state.
   const nextStatus: MeetingStatus | null =
-    bot.status === "completed" ? "processing" : statusFromBaasCode(bot.status);
+    bot.status === "completed"
+      ? meeting.status === "completed" ? "completed" : "processing"
+      : statusFromBaasCode(bot.status);
   if (!nextStatus) {
     return NextResponse.json({ status: meeting.status, providerStatus: bot.status, changed: false });
   }
