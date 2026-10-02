@@ -76,17 +76,23 @@ export function LiveRefresher({
       // Skeleton mode — polling below still works against nothing.
     }
 
+    let syncInFlight = false;
     const syncStatus = async () => {
+      if (syncInFlight) return;
+      syncInFlight = true;
       try {
         const response = await fetch(`/api/meetings/${meetingId}/sync-status`, {
           method: "POST",
           cache: "no-store",
+          signal: AbortSignal.timeout(65000),
         });
         if (!response.ok) return;
         const result = (await response.json()) as { changed?: boolean };
         if (result.changed) router.refresh();
       } catch {
         // Realtime remains available if provider reconciliation is unreachable.
+      } finally {
+        syncInFlight = false;
       }
     };
 

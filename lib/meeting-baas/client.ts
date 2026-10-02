@@ -25,6 +25,7 @@ export interface BaasBotSnapshot {
   exited_at?: string | null;
   duration_seconds?: number | null;
   transcription?: unknown;
+  raw_transcription?: unknown;
 }
 
 export type BaasEventType =

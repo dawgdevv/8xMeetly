@@ -5,7 +5,10 @@ import type { MeetingSummary } from "@/types/meetings";
 function getClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) throw new Error("OPENAI_API_KEY is not configured.");
-  return new OpenAI({ apiKey });
+  // Keep a stalled AI request from holding meeting finalization in Processing.
+  // Retries are disabled here because the meeting pipeline already has
+  // idempotent recovery through the webhook and status reconciler.
+  return new OpenAI({ apiKey, timeout: 30_000, maxRetries: 0 });
 }
 
 const MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";

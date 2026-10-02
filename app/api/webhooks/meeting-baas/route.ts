@@ -3,17 +3,16 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
   extractBotId,
-  fetchV2Transcription,
   segmentEnd,
   segmentStart,
   segmentText,
   type BaasWebhookPayload,
-  type TranscriptSegmentLike,
 } from "@/lib/meeting-baas/client";
-import { normalizeTranscript } from "@/lib/utils/meetings";
-import { summarizeTranscript } from "@/lib/ai/summarize";
 import { statusFromBaasCode } from "@/lib/meeting-baas/status";
 import { providerSegmentKey } from "@/lib/meeting-baas/transcript-key";
+import { finalizeMeeting } from "@/lib/meeting-baas/finalize";
+
+export const maxDuration = 60;
 
 // POST /api/webhooks/meeting-baas
 // Meeting BaaS v2 contract (docs.meetingbaas.com):
@@ -22,69 +21,6 @@ import { providerSegmentKey } from "@/lib/meeting-baas/transcript-key";
 //   `bot.failed`        → terminal failure
 // v1 `complete`/`failed`/`transcription_complete` kept as fallback.
 // Always answer fast; SVIX retries failed deliveries.
-
-async function runAiPipeline(
-  admin: ReturnType<typeof createAdminClient>,
-  meetingId: string
-) {
-  const { data: segments, error: segmentsError } = await admin
-    .from("transcript_segments")
-    .select("speaker,text,start_time")
-    .eq("meeting_id", meetingId)
-    .order("start_time", { ascending: true });
-  if (segmentsError) throw segmentsError;
-
-  if (!segments || segments.length === 0) {
-    const { error } = await admin
-      .from("meetings")
-      .update({ status: "completed", summary_status: "no_transcript" })
-      .eq("id", meetingId);
-    if (error) throw error;
-    return;
-  }
-
-  if (!process.env.OPENAI_API_KEY) {
-    console.warn("Transcript saved without AI notes because OPENAI_API_KEY is not configured", {
-      meetingId,
-      segmentCount: segments.length,
-    });
-    const { error } = await admin
-      .from("meetings")
-      .update({ status: "completed", summary_status: "unavailable" })
-      .eq("id", meetingId);
-    if (error) throw error;
-    return;
-  }
-
-  const transcript = normalizeTranscript(segments);
-  const result = await summarizeTranscript(transcript);
-  const insights = [
-    { meeting_id: meetingId, type: "summary" as const, content: result.summary },
-    ...result.topics.map((t) => ({
-      meeting_id: meetingId,
-      type: "key_topic" as const,
-      content: t,
-    })),
-    ...result.decisions.map((d) => ({
-      meeting_id: meetingId,
-      type: "decision" as const,
-      content: d,
-    })),
-    ...result.action_items.map((a) => ({
-      meeting_id: meetingId,
-      type: "action_item" as const,
-      content: a.description,
-      metadata: { assignee: a.assignee ?? null, due_date: a.due_date ?? null },
-    })),
-  ];
-  const { error: insightError } = await admin.from("meeting_insights").insert(insights);
-  if (insightError) throw insightError;
-  const { error: completeError } = await admin
-    .from("meetings")
-    .update({ status: "completed", summary_status: "done" })
-    .eq("id", meetingId);
-  if (completeError) throw completeError;
-}
 
 export async function POST(req: Request) {
   const rawBody = await req.text();
@@ -231,69 +167,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Could not persist bot completion" }, { status: 500 });
     }
 
-    if (typeof data.transcription === "string" && data.transcription.length > 0) {
-      try {
-        const fetched = await fetchV2Transcription(
-          data.transcription,
-          typeof data.raw_transcription === "string" ? data.raw_transcription : undefined
-        );
-        const { data: liveRows, error: liveRowsError } = await admin
-          .from("transcript_segments")
-          .select("start_time,provider_segment_key")
-          .eq("meeting_id", meetingId)
-          .not("provider_segment_key", "is", null);
-        if (liveRowsError) throw liveRowsError;
-
-        const unmatchedLiveRows = [...(liveRows ?? [])];
-        const rows = fetched.map((s: TranscriptSegmentLike) => {
-          let providerKey = providerSegmentKey(botId, s.start_time);
-          if (s.start_time !== null) {
-            let closestIndex = -1;
-            let closestDelta = 1.25;
-            unmatchedLiveRows.forEach((live, index) => {
-              if (live.start_time === null || !live.provider_segment_key) return;
-              const delta = Math.abs(live.start_time - s.start_time!);
-              if (delta < closestDelta) {
-                closestDelta = delta;
-                closestIndex = index;
-              }
-            });
-            if (closestIndex >= 0) {
-              providerKey = unmatchedLiveRows.splice(closestIndex, 1)[0].provider_segment_key;
-            }
-          }
-          return {
-            meeting_id: meetingId,
-            speaker: s.speaker,
-            speaker_id: null,
-            text: s.text,
-            start_time: s.start_time,
-            end_time: s.end_time,
-            provider_segment_key: providerKey,
-            is_final: true,
-          };
-        });
-        if (rows.length > 0) {
-          const { error: transcriptError } = await admin
-            .from("transcript_segments")
-            .upsert(rows, { onConflict: "provider_segment_key" });
-          if (transcriptError) throw transcriptError;
-        }
-      } catch (e) {
-        console.error("Transcription download failed:", e);
-        return NextResponse.json({ error: "Could not save transcript artifact" }, { status: 500 });
-      }
-    }
-
     try {
-      await runAiPipeline(admin, meetingId);
+      await finalizeMeeting(
+        admin,
+        meetingId,
+        botId,
+        typeof data.transcription === "string" ? data.transcription : undefined,
+        typeof data.raw_transcription === "string" ? data.raw_transcription : undefined
+      );
     } catch (e) {
-      console.error("AI processing failed:", e);
-      const { error } = await admin
-        .from("meetings")
-        .update({ status: "completed", summary_status: "failed" })
-        .eq("id", meetingId);
-      if (error) console.error("Could not persist AI failure state", { meetingId, error: error.message });
+      console.error("Meeting finalization failed:", e);
+      return NextResponse.json({ error: "Could not finalize completed meeting" }, { status: 500 });
     }
     return NextResponse.json({ ok: true });
   }
@@ -328,14 +212,10 @@ export async function POST(req: Request) {
     }
 
     try {
-      await runAiPipeline(admin, meetingId);
+      await finalizeMeeting(admin, meetingId, botId);
     } catch (e) {
-      console.error("AI processing failed:", e);
-      const { error } = await admin
-        .from("meetings")
-        .update({ status: "completed", summary_status: "failed" })
-        .eq("id", meetingId);
-      if (error) console.error("Could not persist AI failure state", { meetingId, error: error.message });
+      console.error("Meeting finalization failed:", e);
+      return NextResponse.json({ error: "Could not finalize completed meeting" }, { status: 500 });
     }
     return NextResponse.json({ ok: true });
   }

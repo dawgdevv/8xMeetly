@@ -136,7 +136,10 @@ export default async function MeetingDetailPage({
 
   return (
     <div className="mx-auto w-full max-w-[900px]">
-      <LiveRefresher meetingId={id} active={!done && meeting.status !== "failed"} />
+      <LiveRefresher
+        meetingId={id}
+        active={meeting.status !== "failed" && (!done || meeting.summary_status === "running")}
+      />
       <WorkspaceHeader
         meetingId={id}
         title={formatMeetingTitle(meeting.title, meeting.created_at)}
