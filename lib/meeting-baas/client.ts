@@ -1,6 +1,6 @@
 // Meeting BaaS integration layer — API v2.
 // Verified against https://docs.meetingbaas.com (v2 reference):
-// - Join: POST https://api.meetingbaas.com/v2/bots {bot_name, meeting_url, transcription_enabled}
+// - Join: POST https://api.meetingbaas.com/v2/bots with transcription_config.provider=gladia
 //         → {data: {bot_id}, success: true}, auth via `x-meeting-baas-api-key`
 // - Completion: v2 webhooks `bot.status_change` / `bot.completed` / `bot.failed`
 //   (account-level, SVIX-signed). bot.completed carries ARTIFACT URLS —
@@ -146,6 +146,7 @@ export async function joinMeetingViaBaas(
       bot_name: params.botName ?? "8xMeetly Notetaker",
       meeting_url: params.meetingUrl,
       transcription_enabled: true,
+      transcription_config: { provider: "gladia" },
     }),
   });
 
