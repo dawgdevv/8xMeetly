@@ -233,7 +233,10 @@ export async function POST(req: Request) {
 
     if (typeof data.transcription === "string" && data.transcription.length > 0) {
       try {
-        const fetched = await fetchV2Transcription(data.transcription);
+        const fetched = await fetchV2Transcription(
+          data.transcription,
+          typeof data.raw_transcription === "string" ? data.raw_transcription : undefined
+        );
         const { data: liveRows, error: liveRowsError } = await admin
           .from("transcript_segments")
           .select("start_time,provider_segment_key")

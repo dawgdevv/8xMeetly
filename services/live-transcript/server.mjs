@@ -111,17 +111,40 @@ webSockets.on("connection", (ws) => {
           });
           return;
         }
-        if (message.event !== "transcript.segment") return;
-
         const segment = message.data;
-        const startTime = Number(segment.utteranceStart);
-        const text = typeof segment.text === "string" ? segment.text.trim() : "";
-        const endTime = Number(segment.utteranceEnd);
-        const isFinal = segment.isFinal === true;
-        if (!text || !Number.isFinite(startTime) || typeof segment.isFinal !== "boolean") return;
+        if (!segment || typeof segment !== "object") return;
+
+        const translatedUtterance = segment.translated_utterance;
+        const isTranslationEvent =
+          message.event === "translation" ||
+          message.type === "translation" ||
+          segment.type === "translation" ||
+          (typeof translatedUtterance?.text === "string" &&
+            translatedUtterance.language === "en");
+        if (message.event !== "transcript.segment" && !isTranslationEvent) return;
+
+        const sourceUtterance = segment.utterance;
+        const startTime = Number(
+          segment.utteranceStart ?? sourceUtterance?.start ?? translatedUtterance?.start
+        );
+        const textCandidate = isTranslationEvent
+          ? translatedUtterance?.text ?? segment.text
+          : segment.text;
+        const text = typeof textCandidate === "string" ? textCandidate.trim() : "";
+        const endTime = Number(
+          segment.utteranceEnd ?? sourceUtterance?.end ?? translatedUtterance?.end
+        );
+        const isFinal = isTranslationEvent || segment.isFinal === true;
+        if (
+          !text ||
+          !Number.isFinite(startTime) ||
+          (isTranslationEvent && typeof translatedUtterance?.text !== "string") ||
+          (!isTranslationEvent && typeof segment.isFinal !== "boolean")
+        ) return;
 
         const boundedEnd = Number.isFinite(endTime) ? endTime : startTime;
-        const speakerId = segment.speaker?.id == null ? null : String(segment.speaker.id);
+        const speaker = segment.speaker ?? sourceUtterance?.speaker;
+        const speakerId = speaker?.id == null ? null : String(speaker.id);
         let matchedKey = null;
         let bestOverlap = -Infinity;
         for (const [candidateKey, pending] of pendingSegments) {
@@ -172,7 +195,6 @@ webSockets.on("connection", (ws) => {
           meetingMarkedInProgress = true;
         }
 
-        const speaker = segment.speaker;
         const row = {
           meeting_id: meetingId,
           speaker: typeof speaker?.name === "string" ? speaker.name : null,

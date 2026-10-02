@@ -146,7 +146,18 @@ export async function joinMeetingViaBaas(
       bot_name: params.botName ?? "8xMeetly Notetaker",
       meeting_url: params.meetingUrl,
       transcription_enabled: true,
-      transcription_config: { provider: "gladia" },
+      transcription_config: {
+        provider: "gladia",
+        custom_params: {
+          language_config: { languages: [], detect_language: true },
+          translation: true,
+          translation_config: {
+            target_languages: ["en"],
+            model: "base",
+            match_original_utterances: true,
+          },
+        },
+      },
       ...(process.env.MEETING_BAAS_STREAMING_URL
         ? {
             streaming_enabled: true,
@@ -156,7 +167,18 @@ export async function joinMeetingViaBaas(
               transcription: {
                 provider: "gladia",
                 api_key: null,
-                custom_params: null,
+                custom_params: {
+                  language_config: { languages: [] },
+                  realtime_processing: {
+                    translation: true,
+                    translation_config: {
+                      target_languages: ["en"],
+                      model: "base",
+                      match_original_utterances: true,
+                    },
+                  },
+                  messages_config: { receive_realtime_processing_events: true },
+                },
                 region: null,
               },
             },
@@ -204,25 +226,66 @@ export function segmentEnd(segment: BaasTranscriptSegment): number | null {
 /** Fetch a v2 transcription artifact (presigned URL, valid 4h) and normalize
  *  its utterances to transcript segments. Accepts shape variants defensively. */
 export async function fetchV2Transcription(
-  transcriptionUrl: string
+  transcriptionUrl: string,
+  rawTranscriptionUrl?: string
 ): Promise<TranscriptSegmentLike[]> {
-  const res = await fetch(transcriptionUrl, {
-    signal: AbortSignal.timeout(20000),
-  });
-  if (!res.ok) {
-    throw new Error(`Transcription download failed (${res.status}).`);
+  const fetchArtifact = async (url: string) => {
+    const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
+    if (!res.ok) throw new Error(`Transcription download failed (${res.status}).`);
+    return res.json() as Promise<unknown>;
+  };
+
+  const json = await fetchArtifact(transcriptionUrl);
+  if (rawTranscriptionUrl) {
+    try {
+      type TranslationResult = {
+        target_language?: string;
+        language?: string;
+        languages?: string[];
+        utterances?: BaasTranscriptSegment[];
+      };
+      type RawGladiaArtifact = {
+        transcriptions?: Array<{
+          translation?: Record<string, TranslationResult> & { results?: TranslationResult[] };
+        }>;
+      };
+      const raw = await fetchArtifact(rawTranscriptionUrl) as RawGladiaArtifact;
+      const chunks = Array.isArray(raw.transcriptions) ? raw.transcriptions : [];
+      const translated = chunks.flatMap((chunk) => {
+        const translations = chunk.translation;
+        const english = translations?.en ?? translations?.results?.find(
+          (result) =>
+            result?.target_language === "en" || result?.language === "en" || result?.languages?.includes("en")
+        );
+        return Array.isArray(english?.utterances) ? english.utterances : [];
+      });
+      const translatedSegments = translated
+        .map((utterance) => ({
+          speaker: typeof utterance.speaker === "string" ? utterance.speaker : null,
+          text: segmentText(utterance),
+          start_time: segmentStart(utterance),
+          end_time: segmentEnd(utterance),
+        }))
+        .filter((segment) => segment.text.trim().length > 0);
+      if (translatedSegments.length > 0) return translatedSegments;
+    } catch (error) {
+      console.warn("Could not read translated transcription artifact; using standard transcript", {
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
   }
-  const json = (await res.json()) as {
+
+  const result = json as {
     result?: { utterances?: BaasTranscriptSegment[] };
     utterances?: BaasTranscriptSegment[];
     transcript?: BaasTranscriptSegment[];
   };
 
   const utterances =
-    json.result?.utterances ??
-    json.utterances ??
-    json.transcript ??
-    (Array.isArray(json) ? (json as BaasTranscriptSegment[]) : []);
+    result.result?.utterances ??
+    result.utterances ??
+    result.transcript ??
+    (Array.isArray(json) ? (json as unknown as BaasTranscriptSegment[]) : []);
 
   return utterances
     .map((u) => ({
