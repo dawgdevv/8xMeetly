@@ -15,6 +15,11 @@ export function formatMeetingDateTime(value: Date | string): string {
   return dateTimeFormatter.format(new Date(value));
 }
 
+export function formatMeetingTitle(title: string | null | undefined, createdAt: Date | string): string {
+  const cleanedTitle = title?.trim();
+  return cleanedTitle || `Google Meet · ${formatMeetingDate(createdAt)}`;
+}
+
 export function greetingForHour(hour: number): string {
   if (hour < 12) return "Good morning";
   if (hour < 18) return "Good afternoon";

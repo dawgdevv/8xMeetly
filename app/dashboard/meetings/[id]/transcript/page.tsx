@@ -6,6 +6,7 @@ import { LiveRefresher } from "@/components/meetings/live-refresher";
 import { WorkspaceHeader } from "@/components/meetings/workspace-header";
 import { TranscriptSearch } from "@/components/transcript/transcript-search";
 import { createClient } from "@/lib/supabase/server";
+import { formatMeetingTitle } from "@/lib/utils/format";
 
 type MeetingState = {
   title: string | null;
@@ -69,7 +70,7 @@ export default async function TranscriptPage({
       <LiveRefresher meetingId={id} active={!terminal} />
       <WorkspaceHeader
         meetingId={id}
-        title={meeting.title ?? "Untitled meeting"}
+        title={formatMeetingTitle(meeting.title, meeting.created_at)}
         status={meeting.status}
         createdAt={meeting.created_at}
         durationSeconds={meeting.duration_seconds}

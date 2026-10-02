@@ -6,6 +6,7 @@ import { LiveRefresher } from "@/components/meetings/live-refresher";
 import { WorkspaceHeader } from "@/components/meetings/workspace-header";
 import { AskPanel } from "@/components/meetings/ask-panel";
 import { createClient } from "@/lib/supabase/server";
+import { formatMeetingTitle } from "@/lib/utils/format";
 
 export default async function AskPage({
   params,
@@ -36,7 +37,7 @@ export default async function AskPage({
       <LiveRefresher meetingId={id} active={!terminal} />
       <WorkspaceHeader
         meetingId={id}
-        title={(meeting.title as string | null) ?? "Untitled meeting"}
+        title={formatMeetingTitle(meeting.title as string | null, String(meeting.created_at))}
         status={status}
         createdAt={String(meeting.created_at)}
         durationSeconds={(meeting.duration_seconds as number | null) ?? null}

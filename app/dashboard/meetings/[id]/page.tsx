@@ -17,6 +17,7 @@ import { Card } from "@/components/ui/card";
 import { LiveRefresher } from "@/components/meetings/live-refresher";
 import { WorkspaceHeader } from "@/components/meetings/workspace-header";
 import { createClient } from "@/lib/supabase/server";
+import { formatMeetingTitle } from "@/lib/utils/format";
 import { formatTimestamp } from "@/lib/utils/meetings";
 import { cn } from "@/lib/utils";
 
@@ -138,7 +139,7 @@ export default async function MeetingDetailPage({
       <LiveRefresher meetingId={id} active={!done && meeting.status !== "failed"} />
       <WorkspaceHeader
         meetingId={id}
-        title={meeting.title ?? "Untitled meeting"}
+        title={formatMeetingTitle(meeting.title, meeting.created_at)}
         status={meeting.status}
         createdAt={meeting.created_at}
         durationSeconds={meeting.duration_seconds}

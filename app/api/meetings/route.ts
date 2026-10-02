@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient, getUserId } from "@/lib/supabase/server";
 import { isValidMeetingUrl } from "@/lib/utils/meetings";
+import { formatMeetingTitle } from "@/lib/utils/format";
 import {
   isMeetingBaasConfigured,
   joinMeetingViaBaas,
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
     .from("meetings")
     .insert({
       user_id: userId,
-      title: title ?? null,
+      title: formatMeetingTitle(title, new Date()),
       meeting_url: meetingUrl,
       status: "scheduled",
     })

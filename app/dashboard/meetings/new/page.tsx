@@ -13,6 +13,7 @@ import { isValidMeetingUrl } from "@/lib/utils/meetings";
 export default function NewMeetingPage() {
   const router = useRouter();
   const [meetingUrl, setMeetingUrl] = useState("");
+  const [title, setTitle] = useState("");
   const [botName, setBotName] = useState("8xMeetly Notetaker");
   const [urlError, setUrlError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export default function NewMeetingPage() {
       const res = await fetch("/api/meetings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ meetingUrl: meetingUrl.trim(), botName }),
+        body: JSON.stringify({ meetingUrl: meetingUrl.trim(), botName, title: title.trim() }),
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error ?? "Failed to create meeting.");
@@ -77,6 +78,22 @@ export default function NewMeetingPage() {
               value={meetingUrl}
               onChange={(e) => setMeetingUrl(e.target.value)}
               placeholder="https://meet.google.com/abc-defg-hij…"
+            />
+          </Field>
+          <Field
+            label="Meeting name"
+            htmlFor="meeting-title"
+            hint="Optional. Leave blank to use Google Meet and the meeting date."
+          >
+            <Input
+              id="meeting-title"
+              name="meeting-title"
+              type="text"
+              autoComplete="off"
+              maxLength={200}
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Weekly product sync"
             />
           </Field>
           <Field label="Bot Name" htmlFor="bot-name">

@@ -3,7 +3,7 @@ import { ChevronRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { StatusBadge } from "@/components/ui/badge";
 import { formatDuration } from "@/lib/utils/meetings";
-import { formatMeetingDate } from "@/lib/utils/format";
+import { formatMeetingDate, formatMeetingTitle } from "@/lib/utils/format";
 
 export function MeetingCard({
   id,
@@ -20,6 +20,8 @@ export function MeetingCard({
   createdAt: string;
   actionCount?: number;
 }) {
+  const displayTitle = formatMeetingTitle(title, createdAt);
+
   return (
     <Link
       href={`/dashboard/meetings/${id}`}
@@ -31,12 +33,12 @@ export function MeetingCard({
           className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-[15px] bg-ink/[0.06] text-ink sm:flex"
         >
           <span className="text-sm font-extrabold">
-            {(title ?? "U").charAt(0).toUpperCase()}
+            {displayTitle.charAt(0).toUpperCase()}
           </span>
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-[15px] font-bold text-ink">
-            {title ?? "Untitled meeting"}
+            {displayTitle}
           </span>
             <span className="mt-1 block truncate text-[13px] font-medium text-muted">
             {formatMeetingDate(createdAt)} · {formatDuration(durationSeconds)}
