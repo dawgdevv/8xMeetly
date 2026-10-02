@@ -81,6 +81,7 @@ function segmentKey(botId, startTime) {
 
 webSockets.on("connection", (ws) => {
   let botId = null;
+  let meetingMarkedInProgress = false;
   let messageQueue = Promise.resolve();
   const pendingSegments = new Map();
 
@@ -150,6 +151,25 @@ webSockets.on("connection", (ws) => {
         if (!meetingId) {
           console.error("No meeting row found for live transcript bot", { botId });
           return;
+        }
+
+        // Live transcript events confirm that the bot is in the call. Use this
+        // as a lifecycle fallback if the provider's intermediate status webhook
+        // was delayed or missed. Never move a processing/terminal meeting back.
+        if (!meetingMarkedInProgress) {
+          const { error: statusError } = await supabase
+            .from("meetings")
+            .update({ status: "in_progress" })
+            .eq("id", meetingId)
+            .in("status", ["scheduled", "joining", "in_meeting"]);
+          if (statusError) {
+            console.error("Could not mark meeting as recording from live transcript", {
+              botId,
+              meetingId,
+              error: statusError.message,
+            });
+          }
+          meetingMarkedInProgress = true;
         }
 
         const speaker = segment.speaker;
