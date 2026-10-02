@@ -23,6 +23,7 @@ SUPABASE_URL=https://<your-project>.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
 MEETING_BAAS_STREAM_SECRET=<long-random-secret>
 PORT=8080
+BIND_ADDRESS=127.0.0.1
 ```
 
 Create `/etc/systemd/system/8xmeetly-live-transcript.service`:
@@ -69,6 +70,28 @@ Allow inbound ports 80 and 443 for TLS, and keep port 8080 private. Check `https
 
 For troubleshooting, use `sudo journalctl -u 8xmeetly-live-transcript -f` to see connection and transcript event logs.
 
+## GitHub Actions deployment
+
+`.github/workflows/deploy-live-transcript.yml` checks the service JavaScript and deploys it whenever files under `services/live-transcript/` change on `main`. You can also start it manually from the repository’s Actions tab. It deploys over SSH, installs the service dependencies on the VPS, restarts systemd, and checks `/healthz`.
+
+Prepare the VPS once using the direct Node/systemd steps above. Use a dedicated SSH deployment account that can write to `/opt/8xmeetly-live-transcript`; for example, create the directory with that account as owner and mode `0755`. Keep the running service under the separate `meetly` account. Grant the deployment account permission to restart only this service by creating `/etc/sudoers.d/8xmeetly-live-transcript-deploy` with the following line (replace `deploy` with the SSH account name):
+
+```sudoers
+deploy ALL=(root) NOPASSWD: /usr/bin/systemctl restart 8xmeetly-live-transcript.service
+```
+
+Validate the sudoers file with `sudo visudo -cf /etc/sudoers.d/8xmeetly-live-transcript-deploy`. The deployment account needs Node.js 22+ and npm available in its non-interactive SSH `PATH`. Make sure `/opt/8xmeetly-live-transcript` and its installed files are readable by the `meetly` service account.
+
+Add these Actions repository secrets under **Settings → Secrets and variables → Actions**:
+
+- `VPS_HOST` — VPS IP address or hostname
+- `VPS_USER` — SSH deployment account
+- `VPS_SSH_KEY` — private key for that account
+- `VPS_KNOWN_HOSTS` — verified `known_hosts` line for the VPS
+- `VPS_SSH_PORT` — optional; defaults to `22`
+
+Get the host key on a trusted machine with `ssh-keyscan -p <port> <host>` and verify its fingerprint against the VPS console before saving it as `VPS_KNOWN_HOSTS`. Never add Supabase or stream secrets to GitHub Actions; they stay in the VPS environment file.
+
 ## Configure the app
 
 Set these environment variables on the service:
@@ -77,6 +100,7 @@ Set these environment variables on the service:
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `MEETING_BAAS_STREAM_SECRET` — a long random value used to protect the socket
 - `PORT` — usually supplied by the host
+- `BIND_ADDRESS` — optional; use `127.0.0.1` behind a local reverse proxy, or leave unset to bind all interfaces
 
 The service exposes `/healthz` and accepts Meeting BaaS connections at `/transcripts?token=<MEETING_BAAS_STREAM_SECRET>`. It persists interim utterance revisions and finalized segments; the same rows are updated as the speaker continues. Configure the Vercel app with:
 

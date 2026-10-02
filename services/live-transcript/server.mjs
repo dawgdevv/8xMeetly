@@ -5,6 +5,7 @@ import { WebSocketServer } from "ws";
 
 const { SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, MEETING_BAAS_STREAM_SECRET } = process.env;
 const PORT = Number(process.env.PORT ?? 8080);
+const BIND_ADDRESS = process.env.BIND_ADDRESS ?? "0.0.0.0";
 
 if (!SUPABASE_URL || !SUPABASE_SERVICE_ROLE_KEY || !MEETING_BAAS_STREAM_SECRET) {
   throw new Error("SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and MEETING_BAAS_STREAM_SECRET are required.");
@@ -187,8 +188,8 @@ webSockets.on("connection", (ws) => {
   });
 });
 
-server.listen(PORT, "0.0.0.0", () => {
-  console.info("Live transcript WebSocket service listening", { port: PORT });
+server.listen(PORT, BIND_ADDRESS, () => {
+  console.info("Live transcript WebSocket service listening", { port: PORT, address: BIND_ADDRESS });
 });
 
 function shutdown() {

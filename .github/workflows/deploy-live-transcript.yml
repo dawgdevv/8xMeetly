@@ -1,0 +1,73 @@
+name: Live transcript service
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/live-transcript/**"
+      - ".github/workflows/deploy-live-transcript.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-transcript-production
+  cancel-in-progress: true
+
+jobs:
+  validate-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install service dependencies
+        working-directory: services/live-transcript
+        run: npm install --omit=dev --no-audit --no-fund
+
+      - name: Check service syntax
+        run: node --check services/live-transcript/server.mjs
+
+      - name: Package service
+        run: tar -czf /tmp/live-transcript-${GITHUB_SHA}.tar.gz -C services/live-transcript package.json server.mjs
+
+      - name: Load VPS SSH key
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.VPS_SSH_KEY }}
+
+      - name: Configure known VPS host
+        env:
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload and restart service
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          set -eu
+          archive="/tmp/live-transcript-${GITHUB_SHA}.tar.gz"
+          remote_archive="/tmp/live-transcript-${GITHUB_SHA}.tar.gz"
+          scp -P "$VPS_PORT" "$archive" "$VPS_USER@$VPS_HOST:$remote_archive"
+          ssh -p "$VPS_PORT" "$VPS_USER@$VPS_HOST" \
+            "set -eu; \
+             install -d /opt/8xmeetly-live-transcript; \
+             tar -xzf '$remote_archive' -C /opt/8xmeetly-live-transcript; \
+             npm install --omit=dev --no-audit --no-fund --prefix /opt/8xmeetly-live-transcript; \
+             sudo -n /usr/bin/systemctl restart 8xmeetly-live-transcript.service; \
+             healthy=0; \
+             for attempt in 1 2 3 4 5 6 7 8 9 10; do \
+               if curl --fail --silent http://127.0.0.1:8080/healthz >/dev/null 2>&1; then healthy=1; break; fi; \
+               sleep 2; \
+             done; \
+             test \"$healthy\" -eq 1; \
+             rm -f '$remote_archive'"
